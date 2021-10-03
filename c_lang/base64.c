@@ -152,8 +152,8 @@ int Find_Flag(char * flag_str)
 {
     int i, j=0,m=0,k =0, idx=0;
     unsigned int temp=0;
-    char flag[30] ="";
-    int Flag_int[40] = {0,};
+    char flag[MAX_SIZE] ="";
+    int Flag_int[MAX_SIZE] = {0,};
     int base64_bin[24] = {0,};
     int flag_idx=0;
 
