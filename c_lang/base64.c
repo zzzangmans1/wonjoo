@@ -3,6 +3,28 @@
 
 #define MAX_SIZE 10000
 
+/*
+    사용법
+    실행해서 1번 고르면 
+    입력한 문자열을 
+    base64 표로 나누어진다.
+    ex) -----------------------
+            P   e   p
+            80  101 112
+    010100  000110  010011   110000
+        20      6       19      48
+        -----------------------   
+        
+         
+    2번을 고르면 
+    base64 테이블 값을 구하고
+    flag_output으로 원본 값을 구한다.
+
+    enc_str = output.text       107 line
+    dec_str = input.txt         108 line
+    flag_str = flag_output.txt  109 line
+    
+*/
 const char base64table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 char find_base64_table[64] = "";
 
@@ -14,6 +36,7 @@ int Bin_to_Hex(int * base64, int * base64_hex, char * base64_str);
 int Dec_to_Bin(char* base64_str, int *base64_bin);
 int Reset_base64(int * bsae64_hex);
 int Find_Flag(char * flag_str);
+
 int main(){
     char enter_str[MAX_SIZE] ={0,};
     char base64_str[3] = "";
