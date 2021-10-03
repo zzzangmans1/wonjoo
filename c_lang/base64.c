@@ -14,8 +14,8 @@
     010100  000110  010011   110000
         20      6       19      48
         -----------------------   
-        
-         
+
+
     2번을 고르면 
     base64 테이블 값을 구하고
     flag_output으로 원본 값을 구한다.
@@ -23,7 +23,6 @@
     enc_str = output.text       107 line
     dec_str = input.txt         108 line
     flag_str = flag_output.txt  109 line
-    
 */
 const char base64table[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 char find_base64_table[64] = "";
