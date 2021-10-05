@@ -6,6 +6,7 @@
 #pragma warning (disable : 4996)
 
 #define MAX_SIZE		1000
+
 int main(void)
 {
 	FILE* fr = NULL;
