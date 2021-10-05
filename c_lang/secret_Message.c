@@ -3,7 +3,6 @@
 // secret message wargame
 // Run Length Encoding
 
-
 #pragma warning (disable : 4996)
 
 #define MAX_SIZE		1000
