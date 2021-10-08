@@ -8,6 +8,7 @@
 #include <pwd.h>
 #include <grp.h>
 
+
 char *output[]= {               // time
         "%h %e %R"
 };
