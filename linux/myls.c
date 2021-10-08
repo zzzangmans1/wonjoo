@@ -13,6 +13,7 @@ char *output[]= {               // time
         "%h %e %R"
 };
 
+
 int main(void) {
         char *cwd;              // current directory
         char wd[BUFSIZ];
