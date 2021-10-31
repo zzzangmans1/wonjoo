@@ -72,4 +72,3 @@ unsigned long long get_dec(unsigned long long n, unsigned long long d, unsigned 
     }
     return temp;
 }
-
