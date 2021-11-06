@@ -14,7 +14,6 @@ DWORD FLAG[] = { 0x4C86660C, 0x1C9CA62C,
     0xEC8C2C46, 0x8C9CEC46,
     0xC6664CEC, 0x864C4C46
     };
-
 int main(){
     DWORD a1 = 0x0;
     int i=0, j=0;
