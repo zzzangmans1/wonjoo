@@ -65,7 +65,6 @@ int main() {
 
     com_crc_data* com1 = map1;
     // name[0] ~ name[3] forward
-    //uint8_t c = 0x39;
     printf("\nCRC64 name[0] ~ nmae[3] forward\n\n");
     for (int8_t a = 0x20; a < 0x7F; a++) {
         for (int8_t b = 0x20; b < 0x7F; b++) {
