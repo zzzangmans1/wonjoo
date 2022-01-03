@@ -120,7 +120,6 @@ int main() {
 
 int32_t Init_crc_table()    // Init crc table Func
 {
-    size_t jmp = 1;
     for (size_t i = 0; i < 0x100; i++)
     {
         uint64_t result = i;
@@ -136,13 +135,6 @@ int32_t Init_crc_table()    // Init crc table Func
         }
         crc_table[i] = result;
         crc_table_idx[result >> 0x38] = (uint8_t)i;
-        /*
-        printf("%x ", crc_data[i]);
-        if (jmp++ == 0x10) {
-            printf("\n");
-            jmp = 1;
-        }
-        */
     }
     return 0;
 }
