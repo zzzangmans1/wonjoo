@@ -1,0 +1,2 @@
+LODSB : ESI 주소에 있는 값을 BYTE만큼 EAX에 저장
+STOSB : EAX에 있는 값을 BYTE만큼 EDI주소에 있 저장
