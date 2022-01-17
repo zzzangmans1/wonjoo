@@ -1,3 +1,7 @@
 LODSB : ESI 주소에 있는 값을 BYTE만큼 EAX에 저장
 STOSB : EAX에 있는 값을 BYTE만큼 EDI주소에 있 저장
+
 CLD : Direction Flag 를 설정하는 어셈블리어다. DF = 0 으로 설정된다. DF 가 0이면 아래주소에서 위주소로 명령어 실행
+
+POPA : POP ALL로 EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI 순으로 POP
+PUSHA : PUSH ALL로 EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI 순으로 PUSH
