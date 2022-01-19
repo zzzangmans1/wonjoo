@@ -5,3 +5,5 @@ CLD : Direction Flag 를 설정하는 어셈블리어다. DF = 0 으로 설정�
 
 POPA : POP ALL로 EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI 순으로 POP
 PUSHA : PUSH ALL로 EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI 순으로 PUSH
+
+rep : ecx를 카운트로 사용하여 ecx > 0 까지 rep 명령줄을 반복한다.
