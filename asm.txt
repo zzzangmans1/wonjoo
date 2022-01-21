@@ -9,3 +9,7 @@ PUSHA : PUSH ALL로 EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI 순으로 PUSH
 REP : ecx를 카운트로 사용하여 ecx > 0 까지 rep 명령줄을 반복한다.
 
 JAE : >= | CF = 0 or ZF = 1
+
+SHR : 오른쪽 피연산자 만큼 왼쪽 피연산자를 오른쪽으로 시프트 시킨다.
+SHL : 오른쪽 피연산자 만큼 왼쪽 피연산자를 왼쪽으로 시프트 시킨다.
+
