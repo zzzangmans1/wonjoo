@@ -49,7 +49,7 @@ public:
 	size_t m_IpHeaderLen;
 	TCP_HEADER* m_TCPHeader;						// *** TCP HEADER
 	UDP_HEADER* m_UDPHeader;						// *** UDP HEADER
-
+	ARP_HEADER* m_ARPHeader;						// *** ARP HEADER
 	/*
 	struct pcap_pkthdr {
 		struct timeval ts;       time stamp			캡쳐된 시간정보가 저장된 멤버 ts
@@ -79,6 +79,7 @@ public:
 	CString m_PacketLength;
 	CString m_UDPPacketInfo;
 	CString m_TCPPacketInfo;
+	CString m_ARPPacketInfo;
 	CString m_PacketSaveData;
 
 	size_t click_index;															// *** 클릭한 인덱스 
