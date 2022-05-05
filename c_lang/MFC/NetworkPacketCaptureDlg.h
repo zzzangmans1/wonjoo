@@ -98,7 +98,7 @@ public:
 	afx_msg void OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult);					// *** 컨트롤 리스트에 색상 넣을 함수 선언
 
 	static UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _method);
-	int SetPacketInfoTree(CString framecnt, CString time,CString source, CString destination, CString protocol, CString lenth, CString savedata);
+	int SetPacketInfoTree(CString framecnt, CString time, CString protocol, CString lenth, CString savedata);
 	int SetPacketHexList(CString data, CString protocol , int udpsize);
 	afx_msg void OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnBnClickedStart();
