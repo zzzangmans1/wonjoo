@@ -71,7 +71,7 @@ typedef struct arp_header {
 	unsigned char psize;
 	unsigned short opcode;
 	ETHER_ADDR sendmac;
-	IN_ADDR sendip;
+	unsigned char sendip[4];
 	ETHER_ADDR targetmac;
 	IN_ADDR targetip;
 }ARP_HEADER;
