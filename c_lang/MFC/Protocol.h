@@ -64,5 +64,15 @@ typedef struct udp_header
 	unsigned short length;
 	unsigned short checksum;
 }UDP_HEADER;
-
+typedef struct arp_header {
+	unsigned short htpye;
+	unsigned short ptype;
+	unsigned char hsize;
+	unsigned char psize;
+	unsigned short opcode;
+	ETHER_ADDR sendmac;
+	IN_ADDR sendip;
+	ETHER_ADDR targetmac;
+	IN_ADDR targetip;
+}ARP_HEADER;
 #endif
