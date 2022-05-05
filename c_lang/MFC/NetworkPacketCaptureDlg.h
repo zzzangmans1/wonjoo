@@ -1,10 +1,10 @@
-﻿// NetworkPacketCaptureDlg.h: 헤더 파일
+// NetworkPacketCaptureDlg.h: 헤더 파일
 //
 
 #pragma once
 
 #include <pcap/pcap.h>
-
+#include "Protocol.h"
 void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data);	// *** 클래스 외에 생성해야 pcap_loop 함수 실행가능
 
 // CNetworkPacketCaptureDlg 대화 상자
@@ -38,77 +38,17 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);										// *** 다이얼로그 백그라운드 컬러 지정할 함수 선언
 
 	void InitToolBar();															// *** 툴바 생성 함수 선언
-	// *** 구조체 
-	typedef struct ether_addr
-	{
-		unsigned char e_host[6];
-	}ETHER_ADDR;
-
-	typedef struct ethernet_header
-	{
-		ETHER_ADDR dst;
-		ETHER_ADDR src;
-		unsigned short type;
-	}ETHERNET_HEADER;
-	ETHERNET_HEADER *m_EthernetHeader;											// *** ethernet header 변수 선언
-	//ip_header 
-	typedef struct ip_header
-	{
-		unsigned char header_len : 4;
-		unsigned char ver : 4;
-		unsigned char tos;
-		unsigned short total_len;
-		unsigned short id;
-		unsigned char frag_offset : 5;
-		unsigned char mf : 1;
-		unsigned char df : 1;
-		unsigned char rz : 1;
-		unsigned char frag_offset1;
-		unsigned char ttl;
-		unsigned char protocol;
-		//1=ICMP, 2=IGMP, 6=TCP, 8= EGP, 17=UDP, 89=OSPF 등등.....
-		unsigned short cksum;
-		IN_ADDR src_ip;
-		IN_ADDR dst_ip;
-	}IP_HEADER;
-	IP_HEADER* m_IpHeader;
-	size_t m_IpHeaderLen;
-	typedef struct tcp_header
-	{
-		unsigned short src_port;
-		unsigned short dst_port;
-		unsigned int seq;
-		unsigned int ack;
-		unsigned char ns : 1;
-		unsigned char reserved : 3;
-		unsigned char data_offset : 4;
-		unsigned char flag_fin : 1;
-		unsigned char flag_syn : 1;
-		unsigned char flag_rst : 1;
-		unsigned char flag_psh : 1;
-		unsigned char flag_ack : 1;
-		unsigned char flag_urg : 1;
-		unsigned char flag_ece : 1;
-		unsigned char flag_cwr : 1;
-		unsigned short window;
-		unsigned short cksum;
-		unsigned short up;
-
-	}TCP_HEADER;
-	TCP_HEADER* m_TCPHeader;
-	typedef struct udp_header
-	{
-		unsigned short sport;
-		unsigned short dport;
-		unsigned short length;
-		unsigned short checksum;
-	}UDP_HEADER;
-	UDP_HEADER* m_UDPHeader;
+											
 	enum class ThreadWorkingType {
 		THREAD_STOP,
 		THREAD_RUNNING,
 		THREAD_PAUSE
 	};
+	ETHERNET_HEADER* m_EthernetHeader;				// *** ETHERNET HEADER
+	IP_HEADER* m_IpHeader;							// *** IP HEADER
+	size_t m_IpHeaderLen;
+	TCP_HEADER* m_TCPHeader;						// *** TCP HEADER
+	UDP_HEADER* m_UDPHeader;						// *** UDP HEADER
 
 	/*
 	struct pcap_pkthdr {
