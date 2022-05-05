@@ -277,8 +277,6 @@ void CNetworkPacketCaptureDlg::OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult)
 	{
 		CString FrameCnt = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 0);
 		CString Time = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 1);
-		CString Source = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 2);
-		CString Destination = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 3);
 		CString Protocol = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 4);
 		CString Length = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 5);
 		CString SaveData = m_NetworkInterfaceControlList.GetItemText(pNMItemActivate->iItem, 7);
@@ -287,7 +285,7 @@ void CNetworkPacketCaptureDlg::OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 			m_PacketInfoTree.DeleteAllItems();
 			m_PacketDataControlList.DeleteAllItems();
-			SetPacketInfoTree(FrameCnt, Time, Source, Destination, Protocol, Length, SaveData);
+			SetPacketInfoTree(FrameCnt, Time, Protocol, Length, SaveData);
 			SetPacketHexList(SaveData, Protocol, CStringToHex(SaveData, 76, 4));
 			ClickPacketFrameNumber = atoi(FrameCnt);
 		}
@@ -308,8 +306,6 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 {
 	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)AfxGetApp()->m_pMainWnd;
 
-	
-
 	if (pDlg->m_eThreadWork == CNetworkPacketCaptureDlg::ThreadWorkingType::THREAD_STOP)
 	{
 		pcap_breakloop(pDlg->m_NetworkDeviceHandler);
@@ -318,11 +314,12 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_PacketDataControlList.DeleteAllItems();
 		return;
 	}
+
 	pDlg->m_EthernetHeader = (ETHERNET_HEADER*)data;
 	pDlg->m_IpHeader = (IP_HEADER*)(data +14);
 	pDlg->m_IpHeaderLen = (pDlg->m_IpHeader->header_len & 0xF) * 4;
-	
 
+	// *** u_char* 데이터를 CString으로 변환
 	std::string packet_dump_data_string;
 	for (unsigned int i = 1; i < (header->caplen + 1); i++) {
 		char* temp = NULL;
@@ -343,14 +340,41 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	pDlg->m_PacketLength.Format("%d", header->caplen);
 	
 	if (pDlg->m_SourceIp.IsEmpty() || pDlg->m_DestinationIp.IsEmpty() || pDlg->m_PacketLength.IsEmpty()) {
-
 		pcap_breakloop(pDlg->m_NetworkDeviceHandler);
-	pDlg->m_NetworkInterfaceControlList.DeleteAllItems();
-	pDlg->m_PacketInfoTree.DeleteAllItems();
-	pDlg->m_PacketDataControlList.DeleteAllItems();
+		pDlg->m_NetworkInterfaceControlList.DeleteAllItems();
+		pDlg->m_PacketInfoTree.DeleteAllItems();
+		pDlg->m_PacketDataControlList.DeleteAllItems();
 		return;
 	}
-	if (pDlg->m_IpHeader->protocol == IPPROTO_TCP)
+	if (ntohs(pDlg->m_EthernetHeader->type)== 0x806)
+	{
+		pDlg->m_Protocol = "ARP";
+		AfxMessageBox(pDlg->m_Protocol);
+		pDlg->m_ARPHeader = (ARP_HEADER*)(data + 14);
+		pDlg->m_SourceIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
+			pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
+
+		pDlg->m_DestinationIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->targetmac.e_host[0], pDlg->m_ARPHeader->targetmac.e_host[1], pDlg->m_ARPHeader->targetmac.e_host[2],
+			pDlg->m_ARPHeader->targetmac.e_host[3], pDlg->m_ARPHeader->targetmac.e_host[4], pDlg->m_ARPHeader->targetmac.e_host[5]);
+
+		if (ntohs(pDlg->m_ARPHeader->opcode) == 1) pDlg->m_ARPPacketInfo.Format("who has %s ? Tell %d.%d.%d.%d",inet_ntoa(pDlg->m_ARPHeader->targetip), pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3]);
+		else pDlg->m_ARPPacketInfo.Format("%d.%d.%d.%d is at %02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3], pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
+								pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
+
+
+		size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
+		CString ListControlCntStr;
+		ListControlCntStr.Format("%d", ListControlCnt + 1);
+		pDlg->m_NetworkInterfaceControlList.InsertItem(ListControlCnt, ListControlCntStr, 0);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 1, pDlg->m_CurrentTime);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 2, pDlg->m_SourceIp);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 3, pDlg->m_DestinationIp);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 4, pDlg->m_Protocol);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 5, pDlg->m_PacketLength);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 6, pDlg->m_ARPPacketInfo);
+		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 7, SaveData);
+	}
+	else if (pDlg->m_IpHeader->protocol == IPPROTO_TCP)
 	{
 		pDlg->m_Protocol = "TCP";
 		pDlg->m_TCPHeader = (TCP_HEADER*) ((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
@@ -375,7 +399,6 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		if (ntohs(pDlg->m_UDPHeader->dport) == 1900 && pDlg->m_DestinationIp == "239.255.255.250") {
 			pDlg->m_Protocol = "SSDP";
 			int i = 42;
-			AfxMessageBox(pDlg->m_Protocol);
 			pDlg->m_UDPPacketInfo = "";
 			while (1)
 			{
@@ -397,7 +420,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	}
 	if (pDlg->m_NetworkInterfaceControlList.GetItemCount() == 1)
 	{
-		pDlg->SetPacketInfoTree("1",  pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol,pDlg->m_PacketLength, SaveData);
+		pDlg->SetPacketInfoTree("1",  pDlg->m_CurrentTime, pDlg->m_Protocol,pDlg->m_PacketLength, SaveData);
 		if (pDlg->m_IpHeader->protocol == IPPROTO_UDP) pDlg->SetPacketHexList(SaveData, pDlg->m_Protocol, SWAP16(pDlg->m_UDPHeader->length));
 		else pDlg->SetPacketHexList(SaveData, pDlg->m_Protocol, 0);
 	}
@@ -417,7 +440,7 @@ UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _mothod)
 	bpf_u_int32 NetMask = 0;
 
 	char* errbuf = "";
-	const char* filter = "tcp or udp";
+	const char* filter = "tcp or udp or arp";
 	size_t i = 0;
 
 	/* 
@@ -495,6 +518,7 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	BOOL bTCPFlag = FALSE;
 	BOOL bUDPFlag = FALSE;
 	BOOL bSSDPFlag = FALSE;
+	BOOL bARPFlag = FALSE;
 	NMLVCUSTOMDRAW* pLVCD = (NMLVCUSTOMDRAW*)pNMHDR;
 
 	strType = m_NetworkInterfaceControlList.GetItemText(pLVCD->nmcd.dwItemSpec, 4);
@@ -512,6 +536,12 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	if ((strType.Find(_T("SSDP")) != -1))
 	{
 		bSSDPFlag = TRUE;
+	}
+
+
+	if ((strType.Find(_T("ARP")) != -1))
+	{
+		bARPFlag = TRUE;
 	}
 	*pResult = 0;
 
@@ -535,6 +565,10 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		else if (bSSDPFlag)
 		{
 			pLVCD->clrTextBk = RGB(255, 197, 78);
+		}
+		else if (bARPFlag)
+		{
+			pLVCD->clrTextBk = RGB(251, 255, 95);
 		}
 		else
 		{
@@ -619,13 +653,14 @@ void CNetworkPacketCaptureDlg::OnBnClickedStop()
 }
 
 // *** 트리 세팅
-int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time,  CString source, CString destination, CString protocol, CString length, CString savedata)
+int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, CString protocol, CString length, CString savedata)
 {
-	CString CStmp, TypeName;
+	CString CStmp;
 	// *** 트리 변수 선언
 	HTREEITEM TR1 = NULL, TR1_1=NULL, TR1_2=NULL, TR1_3=NULL, TR1_4=NULL, TR1_5=NULL, TR1_6=NULL;
 	HTREEITEM TR2 = NULL, TR2_1=NULL, TR2_2=NULL, TR2_3=NULL;
 	HTREEITEM TR3 = NULL, TR3_1=NULL, TR3_2=NULL, TR3_3=NULL, TR3_4=NULL, TR3_5=NULL, TR3_6=NULL, TR3_7=NULL, TR3_8=NULL, TR3_9=NULL, TR3_10=NULL, TR3_11=NULL, TR3_12=NULL;
+	HTREEITEM ARPTR3 = NULL, ARPTR3_1 = NULL, ARPTR3_2 =NULL, ARPTR3_3 =NULL, ARPTR3_4 =NULL, ARPTR3_5=NULL, ARPTR3_6=NULL, ARPTR3_7=NULL, ARPTR3_8=NULL, ARPTR3_9=NULL;
 	HTREEITEM TCPTR4 = NULL, TCPTR4_1 = NULL, TCPTR4_2 = NULL, TCPTR4_3 = NULL, TCPTR4_4 = NULL, TCPTR4_5 = NULL,
 		TCPTR4_6 = NULL, TCPTR4_6_1 = NULL, TCPTR4_6_2 = NULL, TCPTR4_6_3 = NULL, TCPTR4_6_4 = NULL, TCPTR4_6_5 = NULL, TCPTR4_6_6 = NULL,
 		TCPTR4_6_7 = NULL, TCPTR4_6_8 = NULL, TCPTR4_6_9 = NULL, TCPTR4_6_10 = NULL,
@@ -641,6 +676,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time,  
 	CString TRS1, TRS1_1, TRS1_2, TRS1_3, TRS1_4, TRS1_5, TRS1_6;
 	CString TRS2, TRS2_1, TRS2_2, TRS2_3;
 	CString TRS3, TRS3_1, TRS3_2, TRS3_3, TRS3_4, TRS3_5, TRS3_6, TRS3_7, TRS3_8, TRS3_9, TRS3_10, TRS3_11, TRS3_12;
+	CString ARPTRS3, ARPTRS3_1, ARPTRS3_2, ARPTRS3_3, ARPTRS3_4, ARPTRS3_5, ARPTRS3_6, ARPTRS3_7, ARPTRS3_8, ARPTRS3_9;
 	CString TCPTRS4, TCPTRS4_1, TCPTRS4_2, TCPTRS4_3, TCPTRS4_4, TCPTRS4_5, TCPTRS4_6,
 		TCPTRS4_6_1, TCPTRS4_6_2, TCPTRS4_6_3, TCPTRS4_6_4, TCPTRS4_6_5,
 		TCPTRS4_6_6, TCPTRS4_6_7, TCPTRS4_6_8, TCPTRS4_6_9, TCPTRS4_6_10,
@@ -659,8 +695,8 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time,  
 
 	CString MACS;
 	CString MACD;
-	MACD.Format("(%X:%X:%X:%X:%X:%X)", CStringToHex(savedata, 0, 2), CStringToHex(savedata, 2, 2), CStringToHex(savedata,4, 2), CStringToHex(savedata ,6, 2), CStringToHex(savedata ,8, 2), CStringToHex(savedata, 10, 2));
-	MACS.Format("(%X:%X:%X:%X:%X:%X)", CStringToHex(savedata ,12, 2), CStringToHex(savedata ,14, 2), CStringToHex(savedata , 16, 2), CStringToHex(savedata ,18 ,2), CStringToHex(savedata ,20, 2), CStringToHex(savedata ,22, 2));
+	MACD.Format("(%02X:%02X:%02X:%02X:%02X:%02X)", CStringToHex(savedata, 0, 2), CStringToHex(savedata, 2, 2), CStringToHex(savedata,4, 2), CStringToHex(savedata ,6, 2), CStringToHex(savedata ,8, 2), CStringToHex(savedata, 10, 2));
+	MACS.Format("(%02X:%02X:%02X:%02X:%02X:%02X)", CStringToHex(savedata ,12, 2), CStringToHex(savedata ,14, 2), CStringToHex(savedata , 16, 2), CStringToHex(savedata ,18 ,2), CStringToHex(savedata ,20, 2), CStringToHex(savedata ,22, 2));
 
 	// *** 두 번째 트리
 	TRS2 = "Ethernet II, Src : " + MACS + ", Dst: " + MACD;
@@ -668,304 +704,345 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time,  
 	TRS2_2 = "Source: "+ MACS;
 	
 	int type = CStringToHex(savedata, 24, 4);
-	//short int type = SWAP16(m_EthernetHeader->type);			// *** 리틀엔디안 변경
-	
 	if (type == 0x800)
 	{
-		TypeName = "IPv4";
-	}
-	TRS2_3.Format("Type: %s (0x%04X)",TypeName, type);
-	
-	TRS3 = "InternetProtocol Version " + savedata.Mid(28,1) + ", Src: " + source + ", Dst: " + destination;
+		TRS2_3.Format("Type: IPv4 (0x%04X)", type);
 
-	TRS3_1.Format("%d%d%d%d .... = Version: %X", (CStringToHex(savedata, 28, 1) >> 3) & 1, (CStringToHex(savedata, 28, 1) >> 2) & 1, (CStringToHex(savedata, 28, 1) >> 1) & 1,
-													(CStringToHex(savedata, 28, 1) >> 0) & 1, CStringToHex(savedata, 28, 1));
-	
-	TRS3_2.Format(".... %d%d%d%d = Header Length: %d bytes (%d)", (CStringToHex(savedata, 29, 1) >> 3) & 1, (CStringToHex(savedata, 29, 1) >> 2) & 1, (CStringToHex(savedata, 29, 1) >> 1) & 1,
-																	(CStringToHex(savedata, 29, 1) >> 0) & 1, CStringToHex(savedata, 29, 1) * 4 , CStringToHex(savedata, 29, 1));
-	TRS3_3.Format("Differentiated Services Field: 0x%02X", CStringToHex(savedata, 30, 2));
+		TRS3.Format("InternetProtocol Version %X, Src: %d.%d.%d.%d, Dst: %d.%d.%d.%d", CStringToHex(savedata, 28, 1), 
+			CStringToHex(savedata, 52, 2), CStringToHex(savedata, 54, 2), CStringToHex(savedata, 56, 2), CStringToHex(savedata, 58, 2),
+			CStringToHex(savedata, 60, 2), CStringToHex(savedata, 62, 2), CStringToHex(savedata, 64, 2), CStringToHex(savedata, 66, 2));
 
-	TRS3_4.Format("Total Length: %d", CStringToHex(savedata, 32, 4));
+		TRS3_1.Format("%d%d%d%d .... = Version: %X", (CStringToHex(savedata, 28, 1) >> 3) & 1, (CStringToHex(savedata, 28, 1) >> 2) & 1, (CStringToHex(savedata, 28, 1) >> 1) & 1,
+			(CStringToHex(savedata, 28, 1) >> 0) & 1, CStringToHex(savedata, 28, 1));
 
-	TRS3_5.Format("Identification: 0x%04X (%d)", CStringToHex(savedata,36,4),  CStringToHex(savedata, 36,4));
-	
-	TRS3_6.Format("Flags: 0x%02X", CStringToHex(savedata, 40, 2));
-	TRS3_7.Format("...%d %d%d%d%d %d%d%d%d %d%d%d%d = Fragment Offset: %X", (CStringToHex(savedata,40,4) >> 12) & 1, (CStringToHex(savedata, 40, 4) >> 11) & 1, (CStringToHex(savedata, 40, 4) >> 10) & 1,
-											(CStringToHex(savedata, 40, 4) >> 9) & 1, (CStringToHex(savedata, 40, 4) >> 8) & 1, (CStringToHex(savedata, 40, 4) >> 7) & 1, (CStringToHex(savedata, 40, 4) >> 6) & 1,
-											(CStringToHex(savedata, 40, 4) >> 5) & 1, (CStringToHex(savedata, 40, 4) >> 4) & 1, (CStringToHex(savedata, 40, 4) >> 3) & 1, (CStringToHex(savedata, 40, 4) >> 2) & 1,
-											(CStringToHex(savedata, 40, 4) >> 1) & 1, (CStringToHex(savedata, 40, 4) >> 0) & 1, m_IpHeader->frag_offset1);
-	TRS3_8.Format("Time to Live: %d", CStringToHex(savedata, 44, 2));
-	TRS3_9.Format("Protocol: %s (%d)", protocol, CStringToHex(savedata, 46, 2));
-	
-	//if (CStringToHex(savedata, 46, 2) == IPPROTO_TCP) TRS3_9.Format("Protocol: %s (%d)",protocol, CStringToHex(savedata, 46, 2));
-	//else if (CStringToHex(savedata, 46, 2) == IPPROTO_UDP) TRS3_9.Format("Protocol: %s (%d)", protocol, CStringToHex(savedata, 46, 2));
-	TRS3_10.Format("Header Checksum: 0x%04X", CStringToHex(savedata, 48, 4));
-	TRS3_11 = "Source Address: "+source;			// 52+8
-	TRS3_12 = "Destination Address: "+ destination; // 60+8
+		TRS3_2.Format(".... %d%d%d%d = Header Length: %d bytes (%d)", (CStringToHex(savedata, 29, 1) >> 3) & 1, (CStringToHex(savedata, 29, 1) >> 2) & 1, (CStringToHex(savedata, 29, 1) >> 1) & 1,
+			(CStringToHex(savedata, 29, 1) >> 0) & 1, CStringToHex(savedata, 29, 1) * 4, CStringToHex(savedata, 29, 1));
+		TRS3_3.Format("Differentiated Services Field: 0x%02X", CStringToHex(savedata, 30, 2));
 
-	// *** 세 번째 트리 
+		TRS3_4.Format("Total Length: %d", CStringToHex(savedata, 32, 4));
+
+		TRS3_5.Format("Identification: 0x%04X (%d)", CStringToHex(savedata, 36, 4), CStringToHex(savedata, 36, 4));
+
+		TRS3_6.Format("Flags: 0x%02X", CStringToHex(savedata, 40, 2));
+		TRS3_7.Format("...%d %d%d%d%d %d%d%d%d %d%d%d%d = Fragment Offset: %X", (CStringToHex(savedata, 40, 4) >> 12) & 1, (CStringToHex(savedata, 40, 4) >> 11) & 1, (CStringToHex(savedata, 40, 4) >> 10) & 1,
+			(CStringToHex(savedata, 40, 4) >> 9) & 1, (CStringToHex(savedata, 40, 4) >> 8) & 1, (CStringToHex(savedata, 40, 4) >> 7) & 1, (CStringToHex(savedata, 40, 4) >> 6) & 1,
+			(CStringToHex(savedata, 40, 4) >> 5) & 1, (CStringToHex(savedata, 40, 4) >> 4) & 1, (CStringToHex(savedata, 40, 4) >> 3) & 1, (CStringToHex(savedata, 40, 4) >> 2) & 1,
+			(CStringToHex(savedata, 40, 4) >> 1) & 1, (CStringToHex(savedata, 40, 4) >> 0) & 1, m_IpHeader->frag_offset1);
+		TRS3_8.Format("Time to Live: %d", CStringToHex(savedata, 44, 2));
+		TRS3_9.Format("Protocol: %s (%d)", protocol, CStringToHex(savedata, 46, 2));
+
+		//if (CStringToHex(savedata, 46, 2) == IPPROTO_TCP) TRS3_9.Format("Protocol: %s (%d)",protocol, CStringToHex(savedata, 46, 2));
+		//else if (CStringToHex(savedata, 46, 2) == IPPROTO_UDP) TRS3_9.Format("Protocol: %s (%d)", protocol, CStringToHex(savedata, 46, 2));
+		TRS3_10.Format("Header Checksum: 0x%04X", CStringToHex(savedata, 48, 4));
+		TRS3_11.Format("Source Address: %d.%d.%d.%d", CStringToHex(savedata, 52, 2), CStringToHex(savedata, 54,2), CStringToHex(savedata, 56,2), CStringToHex(savedata, 58,2));			// 52+8
+		TRS3_12.Format("Destination Address: %d.%d.%d.%d", CStringToHex(savedata, 60, 2), CStringToHex(savedata, 62,2), CStringToHex(savedata, 64,2), CStringToHex(savedata, 66,2));	
+		// *** 세 번째 트리 
 	// *** TCP 라면
-	if (!protocol.Compare( "TCP"))
-	{
-		TCPTRS4.Format("Transmission Control Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
-		TCPTRS4_1.Format("Source Port: %d", CStringToHex(savedata, 68, 4));
-		TCPTRS4_2.Format("Destination Port: %d", CStringToHex(savedata, 72, 4));
-		TCPTRS4_3.Format("Sequence Number: %u", CStringToHex(savedata, 76,8));
-		TCPTRS4_4.Format("Acknowledge Number: %u", CStringToHex(savedata, 84,8));
-		TCPTRS4_5.Format("%d%d%d%d .... = Header Length: %d bytes (%d)",(CStringToHex(savedata,92,1) >> 3) & 1, (CStringToHex(savedata, 92, 1) >> 2) & 1, (CStringToHex(savedata, 92, 1) >> 1) & 1, 
-																		(CStringToHex(savedata, 92, 1) >> 0) & 1, CStringToHex(savedata, 92, 1) *4, CStringToHex(savedata, 92, 1));
-		TCPTRS4_6.Format("Flags: 0x%X", CStringToHex(savedata,93, 3));
-		TCPTRS4_6_1.Format("%d%d%d. .... .... = Reserved: %s", (CStringToHex(savedata, 93, 1) >> 3) & 1, (CStringToHex(savedata, 93, 1) >> 2) & 1, (CStringToHex(savedata, 93, 1) >> 1) & 1,
-																((CStringToHex(savedata, 93, 1) >> 1) & 0xFFF) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_2.Format("...%d .... .... = Nonce: %s", CStringToHex(savedata, 93, 1) & 1, (CStringToHex(savedata, 93, 1) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_3.Format(".... %d... .... = Congestion Window Reduced (CWR): %s", (CStringToHex(savedata, 94, 1) >> 3) & 1, ((CStringToHex(savedata, 94, 1) >> 3) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_4.Format(".... .%d.. .... = ECN-Echo: %s", (CStringToHex(savedata, 94, 1) >> 2) & 1, ((CStringToHex(savedata, 94, 1) >> 2) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_5.Format(".... ..%d. .... = Urgent: %s", (CStringToHex(savedata, 94, 1) >> 1) & 1, ((CStringToHex(savedata, 94, 1) >> 1) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_6.Format(".... ...%d .... = Acknowledgment: %s", (CStringToHex(savedata, 94, 1) >> 0) & 1, ((CStringToHex(savedata, 94, 1) >> 0) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_7.Format(".... .... %d... = Push: %s", (CStringToHex(savedata, 95, 1) >> 3) & 1, ((CStringToHex(savedata, 95, 1) >> 3) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_8.Format(".... .... .%d.. = Reset: %s", (CStringToHex(savedata, 95, 1) >> 2) & 1, ((CStringToHex(savedata, 95, 1) >> 2) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_9.Format(".... .... ..%d. = Syn: %s", (CStringToHex(savedata, 95, 1) >> 1) & 1, ((CStringToHex(savedata, 95, 1) >> 1) & 1) > 0 ? "Set" : "Not Set");
-		TCPTRS4_6_10.Format(".... .... ...%d = Fin: %s", (CStringToHex(savedata, 95, 1) >> 0) & 1, ((CStringToHex(savedata, 95, 1) >> 0) & 1) > 0 ? "Set" : "Not Set");
-
-		TCPTRS4_7.Format("Window: %d", CStringToHex(savedata, 96,4));
-		TCPTRS4_8.Format("Checksum: 0x%X", CStringToHex(savedata, 100, 4));
-		TCPTRS4_9.Format("Urgent Pointer: %d", CStringToHex(savedata, 104, 4));
-		
-	}
-	// *** UDP 라면
-	else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
-	{
-		UDPTRS4.Format("User Datagram Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
-		UDPTRS4_1.Format("Source Port: %d", CStringToHex(savedata, 68, 4));
-		UDPTRS4_2.Format("Destination Port: %d", CStringToHex(savedata, 72, 4));
-		UDPTRS4_3.Format("Length : %d", CStringToHex(savedata, 76, 4));
-		UDPTRS4_4.Format("Checksum: 0x%02X", CStringToHex(savedata, 80, 4));
-		UDPTRS4_5.Format("UDP payload: (%d bytes)", CStringToHex(savedata, 76, 4) - sizeof(UDP_HEADER));
-		int j = 0;
-		CString copytmp = NULL;
-		if (!protocol.Compare("SSDP"))
+		if (!protocol.Compare("TCP"))
 		{
-			SSDPTRS5.Format("Simple Service Discovery Protocol");
-			while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-				SSDPTRS5_1 += copytmp + "";
-				j += 2;
-			}
-			j += 4;
-			while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-				SSDPTRS5_2 += copytmp + "";
-				j += 2;
-			}
-			j += 4;
-			while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-				SSDPTRS5_3 += copytmp + "";
-				j += 2;
-			}
-			j += 4;
-			while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-				SSDPTRS5_4 += copytmp + "";
-				j += 2;
-			}
-			j += 4;
-			while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-				SSDPTRS5_5 += copytmp + "";
-				j += 2;
-			}
-			j += 4;
-			while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-				SSDPTRS5_6 += copytmp + "";
-				j += 2;
-			}
-			j += 4;
-			if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-				{
-					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-					SSDPTRS5_7 += copytmp + "";
-					j += 2;
-				}
-				j += 4;
-			}
-			if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-				{
-					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-					SSDPTRS5_8 += copytmp + "";
-					j += 2;
-				}
-				j += 4;
-			}
+			TCPTRS4.Format("Transmission Control Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
+			TCPTRS4_1.Format("Source Port: %d", CStringToHex(savedata, 68, 4));
+			TCPTRS4_2.Format("Destination Port: %d", CStringToHex(savedata, 72, 4));
+			TCPTRS4_3.Format("Sequence Number: %u", CStringToHex(savedata, 76, 8));
+			TCPTRS4_4.Format("Acknowledge Number: %u", CStringToHex(savedata, 84, 8));
+			TCPTRS4_5.Format("%d%d%d%d .... = Header Length: %d bytes (%d)", (CStringToHex(savedata, 92, 1) >> 3) & 1, (CStringToHex(savedata, 92, 1) >> 2) & 1, (CStringToHex(savedata, 92, 1) >> 1) & 1,
+				(CStringToHex(savedata, 92, 1) >> 0) & 1, CStringToHex(savedata, 92, 1) * 4, CStringToHex(savedata, 92, 1));
+			TCPTRS4_6.Format("Flags: 0x%X", CStringToHex(savedata, 93, 3));
+			TCPTRS4_6_1.Format("%d%d%d. .... .... = Reserved: %s", (CStringToHex(savedata, 93, 1) >> 3) & 1, (CStringToHex(savedata, 93, 1) >> 2) & 1, (CStringToHex(savedata, 93, 1) >> 1) & 1,
+				((CStringToHex(savedata, 93, 1) >> 1) & 0xFFF) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_2.Format("...%d .... .... = Nonce: %s", CStringToHex(savedata, 93, 1) & 1, (CStringToHex(savedata, 93, 1) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_3.Format(".... %d... .... = Congestion Window Reduced (CWR): %s", (CStringToHex(savedata, 94, 1) >> 3) & 1, ((CStringToHex(savedata, 94, 1) >> 3) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_4.Format(".... .%d.. .... = ECN-Echo: %s", (CStringToHex(savedata, 94, 1) >> 2) & 1, ((CStringToHex(savedata, 94, 1) >> 2) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_5.Format(".... ..%d. .... = Urgent: %s", (CStringToHex(savedata, 94, 1) >> 1) & 1, ((CStringToHex(savedata, 94, 1) >> 1) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_6.Format(".... ...%d .... = Acknowledgment: %s", (CStringToHex(savedata, 94, 1) >> 0) & 1, ((CStringToHex(savedata, 94, 1) >> 0) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_7.Format(".... .... %d... = Push: %s", (CStringToHex(savedata, 95, 1) >> 3) & 1, ((CStringToHex(savedata, 95, 1) >> 3) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_8.Format(".... .... .%d.. = Reset: %s", (CStringToHex(savedata, 95, 1) >> 2) & 1, ((CStringToHex(savedata, 95, 1) >> 2) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_9.Format(".... .... ..%d. = Syn: %s", (CStringToHex(savedata, 95, 1) >> 1) & 1, ((CStringToHex(savedata, 95, 1) >> 1) & 1) > 0 ? "Set" : "Not Set");
+			TCPTRS4_6_10.Format(".... .... ...%d = Fin: %s", (CStringToHex(savedata, 95, 1) >> 0) & 1, ((CStringToHex(savedata, 95, 1) >> 0) & 1) > 0 ? "Set" : "Not Set");
 
-			if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-			{
-				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
-				{
-					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-					SSDPTRS5_9 += copytmp + "";
-					j += 2;
-				}
-				j += 4;
-			} 
+			TCPTRS4_7.Format("Window: %d", CStringToHex(savedata, 96, 4));
+			TCPTRS4_8.Format("Checksum: 0x%X", CStringToHex(savedata, 100, 4));
+			TCPTRS4_9.Format("Urgent Pointer: %d", CStringToHex(savedata, 104, 4));
 		}
-	}
-	TR1 = m_PacketInfoTree.InsertItem(TRS1, 0, 0,TVI_ROOT, TVI_LAST);
-	TR1_1 = m_PacketInfoTree.InsertItem(TRS1_1, 0, 0, TR1, TVI_LAST);
-	TR1_2 = m_PacketInfoTree.InsertItem(TRS1_2, 0, 0, TR1, TVI_LAST);
-	TR1_3 = m_PacketInfoTree.InsertItem(TRS1_3, 0, 0, TR1, TVI_LAST);
-	TR1_4 = m_PacketInfoTree.InsertItem(TRS1_4, 0, 0, TR1, TVI_LAST);
-	TR1_5 = m_PacketInfoTree.InsertItem(TRS1_5, 0, 0, TR1, TVI_LAST);
-	TR1_6 = m_PacketInfoTree.InsertItem(TRS1_6, 0, 0, TR1, TVI_LAST);
-
-	TR2 = m_PacketInfoTree.InsertItem(TRS2, 0, 0, TVI_ROOT, TVI_LAST);
-	TR2_1 = m_PacketInfoTree.InsertItem(TRS2_1, 0, 0, TR2, TVI_LAST);
-	TR2_2 = m_PacketInfoTree.InsertItem(TRS2_2, 0, 0, TR2, TVI_LAST);
-	TR2_3 = m_PacketInfoTree.InsertItem(TRS2_3, 0, 0, TR2, TVI_LAST);
-
-	TR3 = m_PacketInfoTree.InsertItem(TRS3, 0, 0, TVI_ROOT, TVI_LAST);
-	TR3_1 = m_PacketInfoTree.InsertItem(TRS3_1, 0, 0, TR3, TVI_LAST);
-	TR3_2 = m_PacketInfoTree.InsertItem(TRS3_2, 0, 0, TR3, TVI_LAST);
-	TR3_3 = m_PacketInfoTree.InsertItem(TRS3_3, 0, 0, TR3, TVI_LAST);
-	TR3_4 = m_PacketInfoTree.InsertItem(TRS3_4, 0, 0, TR3, TVI_LAST);
-	TR3_5 = m_PacketInfoTree.InsertItem(TRS3_5, 0, 0, TR3, TVI_LAST);
-	TR3_6 = m_PacketInfoTree.InsertItem(TRS3_6, 0, 0, TR3, TVI_LAST);
-	TR3_7 = m_PacketInfoTree.InsertItem(TRS3_7, 0, 0, TR3, TVI_LAST);
-	TR3_8 = m_PacketInfoTree.InsertItem(TRS3_8, 0, 0, TR3, TVI_LAST);
-	TR3_9 = m_PacketInfoTree.InsertItem(TRS3_9, 0, 0, TR3, TVI_LAST);
-	TR3_10 = m_PacketInfoTree.InsertItem(TRS3_10, 0, 0, TR3, TVI_LAST);
-	TR3_11 = m_PacketInfoTree.InsertItem(TRS3_11, 0, 0, TR3, TVI_LAST);
-	TR3_12 = m_PacketInfoTree.InsertItem(TRS3_12, 0, 0, TR3, TVI_LAST);
-
-	if (!protocol.Compare("TCP"))
-	{
-		TCPTR4 = m_PacketInfoTree.InsertItem(TCPTRS4, 0, 0, TVI_ROOT, TVI_LAST);
-		TCPTR4_1 = m_PacketInfoTree.InsertItem(TCPTRS4_1, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_2 = m_PacketInfoTree.InsertItem(TCPTRS4_2, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_3 = m_PacketInfoTree.InsertItem(TCPTRS4_3, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_4 = m_PacketInfoTree.InsertItem(TCPTRS4_4, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_5 = m_PacketInfoTree.InsertItem(TCPTRS4_5, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_6 = m_PacketInfoTree.InsertItem(TCPTRS4_6, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_6_1 = m_PacketInfoTree.InsertItem(TCPTRS4_6_1, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_2 = m_PacketInfoTree.InsertItem(TCPTRS4_6_2, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_3 = m_PacketInfoTree.InsertItem(TCPTRS4_6_3, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_4 = m_PacketInfoTree.InsertItem(TCPTRS4_6_4, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_5 = m_PacketInfoTree.InsertItem(TCPTRS4_6_5, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_6 = m_PacketInfoTree.InsertItem(TCPTRS4_6_6, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_7 = m_PacketInfoTree.InsertItem(TCPTRS4_6_7, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_8 = m_PacketInfoTree.InsertItem(TCPTRS4_6_8, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_9 = m_PacketInfoTree.InsertItem(TCPTRS4_6_9, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_6_10 = m_PacketInfoTree.InsertItem(TCPTRS4_6_10, 0, 0, TCPTR4_6, TVI_LAST);
-		TCPTR4_7 = m_PacketInfoTree.InsertItem(TCPTRS4_7, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_8 = m_PacketInfoTree.InsertItem(TCPTRS4_8, 0, 0, TCPTR4, TVI_LAST);
-		TCPTR4_9 = m_PacketInfoTree.InsertItem(TCPTRS4_9, 0, 0, TCPTR4, TVI_LAST);
-
-		m_PacketInfoTree.Expand(TCPTR4, TVE_EXPAND);
-	}
-	else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
-	{
-		UDPTR4 = m_PacketInfoTree.InsertItem(UDPTRS4, 0, 0, TVI_ROOT, TVI_LAST);
-		UDPTR4_1 = m_PacketInfoTree.InsertItem(UDPTRS4_1, 0, 0, UDPTR4, TVI_LAST);
-		UDPTR4_2 = m_PacketInfoTree.InsertItem(UDPTRS4_2, 0, 0, UDPTR4, TVI_LAST);
-		UDPTR4_3 = m_PacketInfoTree.InsertItem(UDPTRS4_3, 0, 0, UDPTR4, TVI_LAST);
-		UDPTR4_4 = m_PacketInfoTree.InsertItem(UDPTRS4_4, 0, 0, UDPTR4, TVI_LAST);
-		UDPTR4_5 = m_PacketInfoTree.InsertItem(UDPTRS4_5, 0, 0, UDPTR4, TVI_LAST); 
-		/*
-		https://www.minzkn.com/moniwiki/wiki.php/SimpleServiceDiscoveryProtocol
-		위 사이트 참고
-
-		검색요청: Multicast 주소 239.255.255.250:1900 으로 하기포맷에 맞춰서 UDP를 송출하면 해당 송신포트로 UPnP 장비로부터 응답을 받게 됩니다.
-		M-SEARCH * HTTP/1.1\r\n
-		HOST: 239.255.255.250:1900\r\n
-		MAN: "ssdp:discover"\r\n
-		MX: <호스트로부터 응답에 응할수 있는 초단위의 최대 시간을 지정합니다. 일반적으로 3초 이상을 권장합니다.>\r\n
-		ST: <검색에 대응하는 서비스를 URN형식으로 지정합니다.>\r\n
-		USER-AGENT: <OS>/<version> UPnP/1.1 <product>/<version>\r\n
-		\r\n 
-		
-		검색요청(M-SEARCH) 예시
-		M-SEARCH * HTTP/1.1\r\n	
-		HOST: 239.255.255.250:1900\r\n
-		MAN: "ssdp:discover"\r\n
-		MX: 3\r\n
-		ST: ssdp:all\r\n
-		USER-AGENT: Linux/3.0.0 UPnP/1.1 HWPORT-CLIENT/1.0.0\r\n
-		\r\n
-		
-		전파(NOTIFY) 예시
-		NOTIFY * HTTP/1.1\r\n
-		HOST: 239.255.255.250:1900\r\n
-		CACHE-CONTROL: max-age=120\r\n
-		DATE: Wed, 24 Aug 2016 10:58:00 GMT\r\n
-		LOCATION: http://192.168.13.110:8888/descriptor.xml\r\n
-		SERVER: Linux/2.6.29.6 UPnP/1.1 mzloader/5.0.1.3\r\n
-		NT: urn:schemas-upnp-org:device:MediaServer:1\r\n
-		USN: uuid:2cc2176e-699e-11e6-ef59-ec438b0186a6::urn:schemas-upnp-org:device:MediaServer:1\r\n
-		NTS: ssdp:alive\r\n
-		\r\n
-
-		응답(M-SEARCH Reply) 형식
-		HTTP/1.1 200 OK\r\n
-		CACHE-CONTROL: max-age = <호스트의 정보가 유효할수 있는 최대 초단위의 시간이며 172800 보다 크게 지정하도록 한다.>\r\n
-		DATE: <호스트가 응답할때 시점의 시간>\r\n
-		EXT: \r\n
-		LOCATION: <자세한 정보를 제공하는 HTTP접속주소>\r\n
-		SERVER: <OS>/<version> UPnP/1.1 <product>/<version>\r\n
-		ST: <요청받았던 ST내용>\r\n
-		USN: <호스트의 서비스에 대응하는 UUID와 ST의 조합>\r\n
-		\r\n
-
-		응답(M-SEARCH Reply) 예시
-		HTTP/1.1 200 OK\r\n
-		CACHE-CONTROL: max-age=172800\r\n
-		DATE: Wed Jul 15 10:10:00 2014 GMT\r\n
-		EXT: \r\n
-		LOCATION: http://192.168.13.110:80/upnp/descriptor?target=this.xml\r\n
-		SERVER: Linux/3.0.0-r1 UPnP/1.1 HWPORT-DEVICE/1.0.0\r\n
-		ST: upnp:rootdevice\r\n
-		USN: uuid:862c2cba-65a7-11e4-ad55-000c293e0367::upnp:rootdevice\r\n
-		\r\n
-		*/
-		if (!protocol.Compare("SSDP"))
+		// *** UDP 라면
+		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
 		{
-			SSDPTR5 = m_PacketInfoTree.InsertItem(SSDPTRS5, 0, 0, TVI_ROOT, TVI_LAST);
-			SSDPTR5_1 = m_PacketInfoTree.InsertItem(SSDPTRS5_1, 0, 0, SSDPTR5, TVI_LAST);
-			SSDPTR5_2 = m_PacketInfoTree.InsertItem(SSDPTRS5_2, 0, 0, SSDPTR5, TVI_LAST);
-			SSDPTR5_3 = m_PacketInfoTree.InsertItem(SSDPTRS5_3, 0, 0, SSDPTR5, TVI_LAST);
-			SSDPTR5_4 = m_PacketInfoTree.InsertItem(SSDPTRS5_4, 0, 0, SSDPTR5, TVI_LAST);
-			SSDPTR5_5 = m_PacketInfoTree.InsertItem(SSDPTRS5_5, 0, 0, SSDPTR5, TVI_LAST);
-			SSDPTR5_6 = m_PacketInfoTree.InsertItem(SSDPTRS5_6, 0, 0, SSDPTR5, TVI_LAST);
-			if (SSDPTRS5_7.IsEmpty() != TRUE)
+			UDPTRS4.Format("User Datagram Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
+			UDPTRS4_1.Format("Source Port: %d", CStringToHex(savedata, 68, 4));
+			UDPTRS4_2.Format("Destination Port: %d", CStringToHex(savedata, 72, 4));
+			UDPTRS4_3.Format("Length : %d", CStringToHex(savedata, 76, 4));
+			UDPTRS4_4.Format("Checksum: 0x%02X", CStringToHex(savedata, 80, 4));
+			UDPTRS4_5.Format("UDP payload: (%d bytes)", CStringToHex(savedata, 76, 4) - sizeof(UDP_HEADER));
+			int j = 0;
+			CString copytmp = NULL;
+			if (!protocol.Compare("SSDP"))
 			{
-				SSDPTR5_7 = m_PacketInfoTree.InsertItem(SSDPTRS5_7, 0, 0, SSDPTR5, TVI_LAST);
-			}
-			if (SSDPTRS5_8.IsEmpty() != TRUE)
-			{
-				SSDPTR5_8 = m_PacketInfoTree.InsertItem(SSDPTRS5_8, 0, 0, SSDPTR5, TVI_LAST);
-			}
-			if (SSDPTRS5_9.IsEmpty() != TRUE)
-			{
-				SSDPTR5_9 = m_PacketInfoTree.InsertItem(SSDPTRS5_9, 0, 0, SSDPTR5, TVI_LAST);
+				SSDPTRS5.Format("Simple Service Discovery Protocol");
+				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+					SSDPTRS5_1 += copytmp + "";
+					j += 2;
+				}
+				j += 4;
+				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+					SSDPTRS5_2 += copytmp + "";
+					j += 2;
+				}
+				j += 4;
+				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+					SSDPTRS5_3 += copytmp + "";
+					j += 2;
+				}
+				j += 4;
+				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+					SSDPTRS5_4 += copytmp + "";
+					j += 2;
+				}
+				j += 4;
+				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+					SSDPTRS5_5 += copytmp + "";
+					j += 2;
+				}
+				j += 4;
+				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+					SSDPTRS5_6 += copytmp + "";
+					j += 2;
+				}
+				j += 4;
+				if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+					{
+						copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+						SSDPTRS5_7 += copytmp + "";
+						j += 2;
+					}
+					j += 4;
+				}
+				if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+					{
+						copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+						SSDPTRS5_8 += copytmp + "";
+						j += 2;
+					}
+					j += 4;
+				}
+
+				if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				{
+					while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+					{
+						copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+						SSDPTRS5_9 += copytmp + "";
+						j += 2;
+					}
+					j += 4;
+				}
 			}
 		}
-		m_PacketInfoTree.Expand(UDPTR4, TVE_EXPAND);
-	}
 
+		TR1 = m_PacketInfoTree.InsertItem(TRS1, 0, 0, TVI_ROOT, TVI_LAST);
+		TR1_1 = m_PacketInfoTree.InsertItem(TRS1_1, 0, 0, TR1, TVI_LAST);
+		TR1_2 = m_PacketInfoTree.InsertItem(TRS1_2, 0, 0, TR1, TVI_LAST);
+		TR1_3 = m_PacketInfoTree.InsertItem(TRS1_3, 0, 0, TR1, TVI_LAST);
+		TR1_4 = m_PacketInfoTree.InsertItem(TRS1_4, 0, 0, TR1, TVI_LAST);
+		TR1_5 = m_PacketInfoTree.InsertItem(TRS1_5, 0, 0, TR1, TVI_LAST);
+		TR1_6 = m_PacketInfoTree.InsertItem(TRS1_6, 0, 0, TR1, TVI_LAST);
+
+		TR2 = m_PacketInfoTree.InsertItem(TRS2, 0, 0, TVI_ROOT, TVI_LAST);
+		TR2_1 = m_PacketInfoTree.InsertItem(TRS2_1, 0, 0, TR2, TVI_LAST);
+		TR2_2 = m_PacketInfoTree.InsertItem(TRS2_2, 0, 0, TR2, TVI_LAST);
+		TR2_3 = m_PacketInfoTree.InsertItem(TRS2_3, 0, 0, TR2, TVI_LAST);
+
+		TR3 = m_PacketInfoTree.InsertItem(TRS3, 0, 0, TVI_ROOT, TVI_LAST);
+		TR3_1 = m_PacketInfoTree.InsertItem(TRS3_1, 0, 0, TR3, TVI_LAST);
+		TR3_2 = m_PacketInfoTree.InsertItem(TRS3_2, 0, 0, TR3, TVI_LAST);
+		TR3_3 = m_PacketInfoTree.InsertItem(TRS3_3, 0, 0, TR3, TVI_LAST);
+		TR3_4 = m_PacketInfoTree.InsertItem(TRS3_4, 0, 0, TR3, TVI_LAST);
+		TR3_5 = m_PacketInfoTree.InsertItem(TRS3_5, 0, 0, TR3, TVI_LAST);
+		TR3_6 = m_PacketInfoTree.InsertItem(TRS3_6, 0, 0, TR3, TVI_LAST);
+		TR3_7 = m_PacketInfoTree.InsertItem(TRS3_7, 0, 0, TR3, TVI_LAST);
+		TR3_8 = m_PacketInfoTree.InsertItem(TRS3_8, 0, 0, TR3, TVI_LAST);
+		TR3_9 = m_PacketInfoTree.InsertItem(TRS3_9, 0, 0, TR3, TVI_LAST);
+		TR3_10 = m_PacketInfoTree.InsertItem(TRS3_10, 0, 0, TR3, TVI_LAST);
+		TR3_11 = m_PacketInfoTree.InsertItem(TRS3_11, 0, 0, TR3, TVI_LAST);
+		TR3_12 = m_PacketInfoTree.InsertItem(TRS3_12, 0, 0, TR3, TVI_LAST);
+
+		if (!protocol.Compare("TCP"))
+		{
+			TCPTR4 = m_PacketInfoTree.InsertItem(TCPTRS4, 0, 0, TVI_ROOT, TVI_LAST);
+			TCPTR4_1 = m_PacketInfoTree.InsertItem(TCPTRS4_1, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_2 = m_PacketInfoTree.InsertItem(TCPTRS4_2, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_3 = m_PacketInfoTree.InsertItem(TCPTRS4_3, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_4 = m_PacketInfoTree.InsertItem(TCPTRS4_4, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_5 = m_PacketInfoTree.InsertItem(TCPTRS4_5, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_6 = m_PacketInfoTree.InsertItem(TCPTRS4_6, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_6_1 = m_PacketInfoTree.InsertItem(TCPTRS4_6_1, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_2 = m_PacketInfoTree.InsertItem(TCPTRS4_6_2, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_3 = m_PacketInfoTree.InsertItem(TCPTRS4_6_3, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_4 = m_PacketInfoTree.InsertItem(TCPTRS4_6_4, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_5 = m_PacketInfoTree.InsertItem(TCPTRS4_6_5, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_6 = m_PacketInfoTree.InsertItem(TCPTRS4_6_6, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_7 = m_PacketInfoTree.InsertItem(TCPTRS4_6_7, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_8 = m_PacketInfoTree.InsertItem(TCPTRS4_6_8, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_9 = m_PacketInfoTree.InsertItem(TCPTRS4_6_9, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_6_10 = m_PacketInfoTree.InsertItem(TCPTRS4_6_10, 0, 0, TCPTR4_6, TVI_LAST);
+			TCPTR4_7 = m_PacketInfoTree.InsertItem(TCPTRS4_7, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_8 = m_PacketInfoTree.InsertItem(TCPTRS4_8, 0, 0, TCPTR4, TVI_LAST);
+			TCPTR4_9 = m_PacketInfoTree.InsertItem(TCPTRS4_9, 0, 0, TCPTR4, TVI_LAST);
+
+			m_PacketInfoTree.Expand(TCPTR4, TVE_EXPAND);
+		}
+
+		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
+		{
+			UDPTR4 = m_PacketInfoTree.InsertItem(UDPTRS4, 0, 0, TVI_ROOT, TVI_LAST);
+			UDPTR4_1 = m_PacketInfoTree.InsertItem(UDPTRS4_1, 0, 0, UDPTR4, TVI_LAST);
+			UDPTR4_2 = m_PacketInfoTree.InsertItem(UDPTRS4_2, 0, 0, UDPTR4, TVI_LAST);
+			UDPTR4_3 = m_PacketInfoTree.InsertItem(UDPTRS4_3, 0, 0, UDPTR4, TVI_LAST);
+			UDPTR4_4 = m_PacketInfoTree.InsertItem(UDPTRS4_4, 0, 0, UDPTR4, TVI_LAST);
+			UDPTR4_5 = m_PacketInfoTree.InsertItem(UDPTRS4_5, 0, 0, UDPTR4, TVI_LAST);
+			/*
+			https://www.minzkn.com/moniwiki/wiki.php/SimpleServiceDiscoveryProtocol
+			위 사이트 참고
+
+			검색요청: Multicast 주소 239.255.255.250:1900 으로 하기포맷에 맞춰서 UDP를 송출하면 해당 송신포트로 UPnP 장비로부터 응답을 받게 됩니다.
+			M-SEARCH * HTTP/1.1\r\n
+			HOST: 239.255.255.250:1900\r\n
+			MAN: "ssdp:discover"\r\n
+			MX: <호스트로부터 응답에 응할수 있는 초단위의 최대 시간을 지정합니다. 일반적으로 3초 이상을 권장합니다.>\r\n
+			ST: <검색에 대응하는 서비스를 URN형식으로 지정합니다.>\r\n
+			USER-AGENT: <OS>/<version> UPnP/1.1 <product>/<version>\r\n
+			\r\n
+
+			검색요청(M-SEARCH) 예시
+			M-SEARCH * HTTP/1.1\r\n
+			HOST: 239.255.255.250:1900\r\n
+			MAN: "ssdp:discover"\r\n
+			MX: 3\r\n
+			ST: ssdp:all\r\n
+			USER-AGENT: Linux/3.0.0 UPnP/1.1 HWPORT-CLIENT/1.0.0\r\n
+			\r\n
+
+			전파(NOTIFY) 예시
+			NOTIFY * HTTP/1.1\r\n
+			HOST: 239.255.255.250:1900\r\n
+			CACHE-CONTROL: max-age=120\r\n
+			DATE: Wed, 24 Aug 2016 10:58:00 GMT\r\n
+			LOCATION: http://192.168.13.110:8888/descriptor.xml\r\n
+			SERVER: Linux/2.6.29.6 UPnP/1.1 mzloader/5.0.1.3\r\n
+			NT: urn:schemas-upnp-org:device:MediaServer:1\r\n
+			USN: uuid:2cc2176e-699e-11e6-ef59-ec438b0186a6::urn:schemas-upnp-org:device:MediaServer:1\r\n
+			NTS: ssdp:alive\r\n
+			\r\n
+
+			응답(M-SEARCH Reply) 형식
+			HTTP/1.1 200 OK\r\n
+			CACHE-CONTROL: max-age = <호스트의 정보가 유효할수 있는 최대 초단위의 시간이며 172800 보다 크게 지정하도록 한다.>\r\n
+			DATE: <호스트가 응답할때 시점의 시간>\r\n
+			EXT: \r\n
+			LOCATION: <자세한 정보를 제공하는 HTTP접속주소>\r\n
+			SERVER: <OS>/<version> UPnP/1.1 <product>/<version>\r\n
+			ST: <요청받았던 ST내용>\r\n
+			USN: <호스트의 서비스에 대응하는 UUID와 ST의 조합>\r\n
+			\r\n
+
+			응답(M-SEARCH Reply) 예시
+			HTTP/1.1 200 OK\r\n
+			CACHE-CONTROL: max-age=172800\r\n
+			DATE: Wed Jul 15 10:10:00 2014 GMT\r\n
+			EXT: \r\n
+			LOCATION: http://192.168.13.110:80/upnp/descriptor?target=this.xml\r\n
+			SERVER: Linux/3.0.0-r1 UPnP/1.1 HWPORT-DEVICE/1.0.0\r\n
+			ST: upnp:rootdevice\r\n
+			USN: uuid:862c2cba-65a7-11e4-ad55-000c293e0367::upnp:rootdevice\r\n
+			\r\n
+			*/
+			if (!protocol.Compare("SSDP"))
+			{
+				SSDPTR5 = m_PacketInfoTree.InsertItem(SSDPTRS5, 0, 0, TVI_ROOT, TVI_LAST);
+				SSDPTR5_1 = m_PacketInfoTree.InsertItem(SSDPTRS5_1, 0, 0, SSDPTR5, TVI_LAST);
+				SSDPTR5_2 = m_PacketInfoTree.InsertItem(SSDPTRS5_2, 0, 0, SSDPTR5, TVI_LAST);
+				SSDPTR5_3 = m_PacketInfoTree.InsertItem(SSDPTRS5_3, 0, 0, SSDPTR5, TVI_LAST);
+				SSDPTR5_4 = m_PacketInfoTree.InsertItem(SSDPTRS5_4, 0, 0, SSDPTR5, TVI_LAST);
+				SSDPTR5_5 = m_PacketInfoTree.InsertItem(SSDPTRS5_5, 0, 0, SSDPTR5, TVI_LAST);
+				SSDPTR5_6 = m_PacketInfoTree.InsertItem(SSDPTRS5_6, 0, 0, SSDPTR5, TVI_LAST);
+				if (SSDPTRS5_7.IsEmpty() != TRUE)
+				{
+					SSDPTR5_7 = m_PacketInfoTree.InsertItem(SSDPTRS5_7, 0, 0, SSDPTR5, TVI_LAST);
+				}
+				if (SSDPTRS5_8.IsEmpty() != TRUE)
+				{
+					SSDPTR5_8 = m_PacketInfoTree.InsertItem(SSDPTRS5_8, 0, 0, SSDPTR5, TVI_LAST);
+				}
+				if (SSDPTRS5_9.IsEmpty() != TRUE)
+				{
+					SSDPTR5_9 = m_PacketInfoTree.InsertItem(SSDPTRS5_9, 0, 0, SSDPTR5, TVI_LAST);
+				}
+			}
+		}
+	}
+	if (!protocol.Compare("ARP"))//(!protocol.Compare("ARP"))
+	{
+		TRS2_3.Format("Type: ARP (0x%04X)", type);
+
+		TR1 = m_PacketInfoTree.InsertItem(TRS1, 0, 0, TVI_ROOT, TVI_LAST);
+		TR1_1 = m_PacketInfoTree.InsertItem(TRS1_1, 0, 0, TR1, TVI_LAST);
+		TR1_2 = m_PacketInfoTree.InsertItem(TRS1_2, 0, 0, TR1, TVI_LAST);
+		TR1_3 = m_PacketInfoTree.InsertItem(TRS1_3, 0, 0, TR1, TVI_LAST);
+		TR1_4 = m_PacketInfoTree.InsertItem(TRS1_4, 0, 0, TR1, TVI_LAST);
+		TR1_5 = m_PacketInfoTree.InsertItem(TRS1_5, 0, 0, TR1, TVI_LAST);
+		TR1_6 = m_PacketInfoTree.InsertItem(TRS1_6, 0, 0, TR1, TVI_LAST);
+
+		TR2 = m_PacketInfoTree.InsertItem(TRS2, 0, 0, TVI_ROOT, TVI_LAST);
+		TR2_1 = m_PacketInfoTree.InsertItem(TRS2_1, 0, 0, TR2, TVI_LAST);
+		TR2_2 = m_PacketInfoTree.InsertItem(TRS2_2, 0, 0, TR2, TVI_LAST);
+		TR2_3 = m_PacketInfoTree.InsertItem(TRS2_3, 0, 0, TR2, TVI_LAST);
+
+		ARPTRS3.Format("Address Resolution Protocol (%s)", CStringToHex(savedata, 40, 4) == 2 ? "Reply" : "Request");
+		ARPTRS3_1.Format("Hardware type : %s", CStringToHex(savedata, 28, 4) == 1 ? "Ethernet (1)" : "(2)");
+		ARPTRS3_2.Format("Protocol type: %s", CStringToHex(savedata, 32, 4) == 0x800 ? "IPv4 (0x0800)" : "Noy IPv4");
+		ARPTRS3_3.Format("Hardware size: %d", CStringToHex(savedata, 36, 2));
+		ARPTRS3_4.Format("Protocol size: %d", CStringToHex(savedata, 38, 2));
+		ARPTRS3_5.Format("Opcode: %s (%d)", CStringToHex(savedata, 40, 4) == 2 ? "Reply" : "Request", CStringToHex(savedata, 40, 4));
+		ARPTRS3_6.Format("Sender MAC address: (%02X:%02X:%02X:%02X:%02X:%02X)", CStringToHex(savedata, 44, 2), CStringToHex(savedata, 46, 2), CStringToHex(savedata, 48, 2),
+																				CStringToHex(savedata, 50, 2), CStringToHex(savedata, 52,2), CStringToHex(savedata, 54, 2));
+		ARPTRS3_7.Format("Sender IP address: %d.%d.%d.%d" ,CStringToHex(savedata, 56, 2), CStringToHex(savedata, 58, 2), CStringToHex(savedata, 60, 2), CStringToHex(savedata, 62, 2));
+		ARPTRS3_8.Format("Target MAC address: (%02X:%02X:%02X:%02X:%02X:%02X)", CStringToHex(savedata, 64, 2), CStringToHex(savedata, 66, 2), CStringToHex(savedata, 68, 2),
+																				CStringToHex(savedata, 70, 2), CStringToHex(savedata, 72, 2), CStringToHex(savedata, 74, 2));
+		
+		ARPTRS3_9.Format("Target IP address: %d.%d.%d.%d", CStringToHex(savedata, 76, 2), CStringToHex(savedata, 78, 2), CStringToHex(savedata, 80, 2), CStringToHex(savedata, 82, 2));
+
+		ARPTR3 = m_PacketInfoTree.InsertItem(ARPTRS3, 0, 0, TVI_ROOT, TVI_LAST);
+		ARPTR3_1 = m_PacketInfoTree.InsertItem(ARPTRS3_1, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_2 = m_PacketInfoTree.InsertItem(ARPTRS3_2, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_3 = m_PacketInfoTree.InsertItem(ARPTRS3_3, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_4 = m_PacketInfoTree.InsertItem(ARPTRS3_4, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_5 = m_PacketInfoTree.InsertItem(ARPTRS3_5, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_6 = m_PacketInfoTree.InsertItem(ARPTRS3_6, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_7 = m_PacketInfoTree.InsertItem(ARPTRS3_7, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_8 = m_PacketInfoTree.InsertItem(ARPTRS3_8, 0, 0, ARPTR3, TVI_LAST);
+		ARPTR3_9 = m_PacketInfoTree.InsertItem(ARPTRS3_9, 0, 0, ARPTR3, TVI_LAST);
+	}
 	// *** 트리 오픈
 	//m_PacketInfoTree.Expand(TR1, TVE_EXPAND);
 	//m_PacketInfoTree.Expand(TR2, TVE_EXPAND);
 	//m_PacketInfoTree.Expand(TR3, TVE_EXPAND);
+
+	//m_PacketInfoTree.Expand(UDPTR4, TVE_EXPAND);
 	return 0;
 }
 
@@ -1000,205 +1077,280 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 	StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,24, 2)), IsAlpha(CStringToHex(data, 26, 2)));
 	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-	m_PacketDataControlList.InsertItem(listidx, "3", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Version");
-	HexTemp.Format("%X", CStringToHex(data, 28, 1));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c", IsAlpha(CStringToHex(data ,28, 1)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "4", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Header Length");
-	HexTemp.Format("%X", CStringToHex(data ,29,1));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c", IsAlpha(CStringToHex(data ,29 ,1)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, HexTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "5", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Differentiated Services Field");
-	HexTemp.Format("%02X", CStringToHex(data ,30,2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c", IsAlpha(CStringToHex(data ,30,2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "6", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Total Length");
-	HexTemp.Format("%02X %02X", CStringToHex(data ,32, 2), CStringToHex(data ,34,2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,32, 2)), IsAlpha(CStringToHex(data ,34, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "7", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Identification");
-	HexTemp.Format("%02X %02X", CStringToHex(data ,36, 2), CStringToHex(data,38, 2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,36, 2)), IsAlpha(CStringToHex(data ,38, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "8", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Flags");
-	HexTemp.Format("%02X %02X", CStringToHex(data ,40, 2), CStringToHex(data ,42, 2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,40, 2)), IsAlpha(CStringToHex(data, 42, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "9", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Time to Live");
-	HexTemp.Format("%02X", CStringToHex(data ,44, 2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c", IsAlpha(CStringToHex(data ,44, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "10", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Protocol");
-	HexTemp.Format("%02X", CStringToHex(data ,46, 2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c", IsAlpha(CStringToHex(data ,46, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "11", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Header Checksum");
-	HexTemp.Format("%02X %02X",  CStringToHex(data ,48, 2), CStringToHex(data ,50, 2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,48, 2)), IsAlpha(CStringToHex(data ,50, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-
-	m_PacketDataControlList.InsertItem(listidx, "12", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Source Address");
-	HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data ,52,2),CStringToHex(data ,54,2) ,CStringToHex(data ,56,2) , CStringToHex(data ,58, 2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data ,52,2)), IsAlpha(CStringToHex(data ,54,2)), IsAlpha(CStringToHex(data ,56,2)), IsAlpha(CStringToHex(data ,58, 2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	m_PacketDataControlList.InsertItem(listidx, "13", 0);
-	m_PacketDataControlList.SetItemText(listidx, 1, "Destination Address");
-	HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data ,60, 2), CStringToHex(data ,62, 2) , CStringToHex(data ,64, 2), CStringToHex(data ,66,2));
-	m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-	StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data ,60, 2)), IsAlpha(CStringToHex(data ,62, 2)), IsAlpha(CStringToHex(data ,64, 2)), IsAlpha(CStringToHex(data ,66,2)));
-	m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-	if (protocol == "TCP")
+	if (CStringToHex(data, 24, 4) == 0x806)
 	{
-		m_PacketDataControlList.InsertItem(listidx, "14", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Source Port");
-		HexTemp.Format("%02X %02X ", CStringToHex(data, 68, 2), CStringToHex(data, 70, 2));
+		m_PacketDataControlList.InsertItem(listidx, "3", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Hardware type");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 28, 2), CStringToHex(data, 30, 2));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c ", IsAlpha(CStringToHex(data, 68, 2)), IsAlpha(CStringToHex(data, 70, 2)));
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 28, 2)), IsAlpha(CStringToHex(data, 30, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-		m_PacketDataControlList.InsertItem(listidx, "15", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Destination Port");
-		HexTemp.Format("%02X %02X", CStringToHex(data, 72, 2), CStringToHex(data, 74, 2));
+		m_PacketDataControlList.InsertItem(listidx, "4", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Protocol type");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 32, 2), CStringToHex(data, 34, 2));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 72, 2)), IsAlpha(CStringToHex(data, 74, 2)));
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 32, 2)), IsAlpha(CStringToHex(data, 34, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-		m_PacketDataControlList.InsertItem(listidx, "16", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Sequence Number");
+		m_PacketDataControlList.InsertItem(listidx, "5", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Hardware size");
+		HexTemp.Format("%02X", CStringToHex(data, 36, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 36, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "6", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Protocol size");
+		HexTemp.Format("%02X", CStringToHex(data, 38, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 38, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "7", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Opcode");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 40, 2), CStringToHex(data, 42, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 40, 2)), IsAlpha(CStringToHex(data, 42, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "8", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Sender MAC address");
+		HexTemp.Format("%02X %02X %02X %02X %02X %02X", CStringToHex(data, 44, 2), CStringToHex(data, 46, 2), CStringToHex(data, 48, 2), 
+														CStringToHex(data, 50, 2), CStringToHex(data, 52, 2), CStringToHex(data, 54, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c %c %c %c %c", IsAlpha(CStringToHex(data, 44, 2)), IsAlpha(CStringToHex(data, 46, 2)), IsAlpha(CStringToHex(data, 48, 2)),
+											IsAlpha(CStringToHex(data, 50, 2)), IsAlpha(CStringToHex(data, 52, 2)), IsAlpha(CStringToHex(data, 54, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "9", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Sender IP address");
+		HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 56, 2), CStringToHex(data, 58, 2), CStringToHex(data, 60, 2), CStringToHex(data, 62, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 56, 2)), IsAlpha(CStringToHex(data, 58, 2)), IsAlpha(CStringToHex(data, 60, 2)),
+			IsAlpha(CStringToHex(data, 62, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "10", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Target MAC address");
+		HexTemp.Format("%02X %02X %02X %02X %02X %02X", CStringToHex(data, 64, 2), CStringToHex(data, 66, 2), CStringToHex(data, 68, 2),
+			CStringToHex(data, 70, 2), CStringToHex(data, 72, 2), CStringToHex(data, 74, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c %c %c %c %c", IsAlpha(CStringToHex(data, 64, 2)), IsAlpha(CStringToHex(data, 66, 2)), IsAlpha(CStringToHex(data, 68, 2)),
+			IsAlpha(CStringToHex(data, 70, 2)), IsAlpha(CStringToHex(data, 72, 2)), IsAlpha(CStringToHex(data, 74, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "11", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Target IP address");
 		HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 76, 2), CStringToHex(data, 78, 2), CStringToHex(data, 80, 2), CStringToHex(data, 82, 2));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c %c %c" , IsAlpha(CStringToHex(data, 76, 2)), IsAlpha(CStringToHex(data, 78, 2)), IsAlpha(CStringToHex(data, 80, 2)), IsAlpha(CStringToHex(data, 82, 2)));
+		StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 76, 2)), IsAlpha(CStringToHex(data, 78, 2)), IsAlpha(CStringToHex(data, 80, 2)),
+			IsAlpha(CStringToHex(data, 82, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-		m_PacketDataControlList.InsertItem(listidx, "17", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Acknowledgment");
-		HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 84, 2), CStringToHex(data, 86, 2), CStringToHex(data, 88, 2), CStringToHex(data, 90, 2));
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 84, 2)), IsAlpha(CStringToHex(data, 86, 2)), IsAlpha(CStringToHex(data, 88, 2)), IsAlpha(CStringToHex(data, 90, 2)));
-		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-		m_PacketDataControlList.InsertItem(listidx, "18", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Header Length");
-		HexTemp.Format("%02X", CStringToHex(data, 92, 1));
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 92, 1)));
-		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-		
-		m_PacketDataControlList.InsertItem(listidx, "19", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Flags");
-		HexTemp.Format("%02X %02X", CStringToHex(data, 93, 1), CStringToHex(data, 94, 2));
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 93, 1)), IsAlpha(CStringToHex(data, 94, 2)));
-		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-		m_PacketDataControlList.InsertItem(listidx, "20", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Window");
-		HexTemp.Format("%02X %02X", CStringToHex(data, 96, 2), CStringToHex(data, 98, 2));
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 96, 2)), IsAlpha(CStringToHex(data, 98, 2)));
-		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-		m_PacketDataControlList.InsertItem(listidx, "21", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Checksum");
-		HexTemp.Format("%02X %02X", CStringToHex(data, 100, 2), CStringToHex(data, 102, 2));
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 100, 2)), IsAlpha(CStringToHex(data, 102, 2)));
-		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-		m_PacketDataControlList.InsertItem(listidx, "22", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Urgent Pointer");
-		HexTemp.Format("%02X %02X", CStringToHex(data, 104, 2), CStringToHex(data, 106, 2));
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 104, 2)), IsAlpha(CStringToHex(data, 106, 2)));
-		m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
 	}
-	else if (protocol == "UDP" || protocol == "SSDP")
+	else if (CStringToHex(data, 24, 4) == 0x800)
 	{
-		m_PacketDataControlList.InsertItem(listidx, "14", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Source Port");
-		HexTemp.Format("%02X %02X", CStringToHex(data ,68, 2), CStringToHex(data ,70, 2));
+		m_PacketDataControlList.InsertItem(listidx, "3", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Version");
+		HexTemp.Format("%X", CStringToHex(data, 28, 1));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,68, 2)), IsAlpha(CStringToHex(data ,70, 2)));
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 28, 1)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-		m_PacketDataControlList.InsertItem(listidx, "15", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Destination Port");
-		HexTemp.Format("%02X %02X", CStringToHex(data, 72, 2), CStringToHex(data,74, 2));
+		m_PacketDataControlList.InsertItem(listidx, "4", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Header Length");
+		HexTemp.Format("%X", CStringToHex(data, 29, 1));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 72, 2)), IsAlpha(CStringToHex(data ,74, 2)));
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 29, 1)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, HexTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "5", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Differentiated Services Field");
+		HexTemp.Format("%02X", CStringToHex(data, 30, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 30, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-		m_PacketDataControlList.InsertItem(listidx, "16", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Length");
-		HexTemp.Format("%02X %02X", CStringToHex(data ,76, 2), CStringToHex(data ,78, 2));
+		m_PacketDataControlList.InsertItem(listidx, "6", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Total Length");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 32, 2), CStringToHex(data, 34, 2));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data ,76, 2)), IsAlpha(CStringToHex(data ,78, 2)));
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 32, 2)), IsAlpha(CStringToHex(data, 34, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-		m_PacketDataControlList.InsertItem(listidx, "17", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Checksum");
-		HexTemp.Format("%02X %02X", CStringToHex(data ,80, 2), CStringToHex(data ,82, 2));
+		m_PacketDataControlList.InsertItem(listidx, "7", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Identification");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 36, 2), CStringToHex(data, 38, 2));
 		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data,80, 2)), IsAlpha(CStringToHex(data ,82, 2)));
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 36, 2)), IsAlpha(CStringToHex(data, 38, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-		CString strcnt;
-		m_PacketDataControlList.InsertItem(listidx, "18", 0);
-		m_PacketDataControlList.SetItemText(listidx, 1, "Data");
-		HexTemp = "";
-		StrTemp = "";
-		CString StrTempcat = "";
-		int j = 0, hexcheck = 0;
-		for (int i = 1; i < udpsize+1; i++)
+
+		m_PacketDataControlList.InsertItem(listidx, "8", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Flags");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 40, 2), CStringToHex(data, 42, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 40, 2)), IsAlpha(CStringToHex(data, 42, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "9", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Time to Live");
+		HexTemp.Format("%02X", CStringToHex(data, 44, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 44, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "10", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Protocol");
+		HexTemp.Format("%02X", CStringToHex(data, 46, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c", IsAlpha(CStringToHex(data, 46, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "11", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Header Checksum");
+		HexTemp.Format("%02X %02X", CStringToHex(data, 48, 2), CStringToHex(data, 50, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 48, 2)), IsAlpha(CStringToHex(data, 50, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+
+		m_PacketDataControlList.InsertItem(listidx, "12", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Source Address");
+		HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 52, 2), CStringToHex(data, 54, 2), CStringToHex(data, 56, 2), CStringToHex(data, 58, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 52, 2)), IsAlpha(CStringToHex(data, 54, 2)), IsAlpha(CStringToHex(data, 56, 2)), IsAlpha(CStringToHex(data, 58, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		m_PacketDataControlList.InsertItem(listidx, "13", 0);
+		m_PacketDataControlList.SetItemText(listidx, 1, "Destination Address");
+		HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 60, 2), CStringToHex(data, 62, 2), CStringToHex(data, 64, 2), CStringToHex(data, 66, 2));
+		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+		StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 60, 2)), IsAlpha(CStringToHex(data, 62, 2)), IsAlpha(CStringToHex(data, 64, 2)), IsAlpha(CStringToHex(data, 66, 2)));
+		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+		if (protocol == "TCP")
 		{
-			if (hexcheck++ == 16) {
-				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-				strcnt.Format("%d", listidx);
-				m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
-				HexTemp = "";
-				StrTemp = "";
-				hexcheck = 1;
-			}
-			HexTemp += data.Mid(84+j, 2).MakeUpper()+" ";
-			if(protocol == "SSDP") StrTempcat.Format("%c", CStringToHex(data, 84 + j, 2));
-			else if(protocol == "UDP") StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 84+ j, 2)));
-			StrTemp += StrTempcat;
-			j += 2;
+			m_PacketDataControlList.InsertItem(listidx, "14", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Source Port");
+			HexTemp.Format("%02X %02X ", CStringToHex(data, 68, 2), CStringToHex(data, 70, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c ", IsAlpha(CStringToHex(data, 68, 2)), IsAlpha(CStringToHex(data, 70, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "15", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Destination Port");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 72, 2), CStringToHex(data, 74, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 72, 2)), IsAlpha(CStringToHex(data, 74, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "16", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Sequence Number");
+			HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 76, 2), CStringToHex(data, 78, 2), CStringToHex(data, 80, 2), CStringToHex(data, 82, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 76, 2)), IsAlpha(CStringToHex(data, 78, 2)), IsAlpha(CStringToHex(data, 80, 2)), IsAlpha(CStringToHex(data, 82, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "17", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Acknowledgment");
+			HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 84, 2), CStringToHex(data, 86, 2), CStringToHex(data, 88, 2), CStringToHex(data, 90, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 84, 2)), IsAlpha(CStringToHex(data, 86, 2)), IsAlpha(CStringToHex(data, 88, 2)), IsAlpha(CStringToHex(data, 90, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "18", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Header Length");
+			HexTemp.Format("%02X", CStringToHex(data, 92, 1));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c", IsAlpha(CStringToHex(data, 92, 1)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "19", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Flags");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 93, 1), CStringToHex(data, 94, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 93, 1)), IsAlpha(CStringToHex(data, 94, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "20", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Window");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 96, 2), CStringToHex(data, 98, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 96, 2)), IsAlpha(CStringToHex(data, 98, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "21", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Checksum");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 100, 2), CStringToHex(data, 102, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 100, 2)), IsAlpha(CStringToHex(data, 102, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "22", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Urgent Pointer");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 104, 2), CStringToHex(data, 106, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 104, 2)), IsAlpha(CStringToHex(data, 106, 2)));
+			m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
 		}
-		m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-		m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+		else if (protocol == "UDP" || protocol == "SSDP")
+		{
+			m_PacketDataControlList.InsertItem(listidx, "14", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Source Port");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 68, 2), CStringToHex(data, 70, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 68, 2)), IsAlpha(CStringToHex(data, 70, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "15", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Destination Port");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 72, 2), CStringToHex(data, 74, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 72, 2)), IsAlpha(CStringToHex(data, 74, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "16", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Length");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 76, 2), CStringToHex(data, 78, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 76, 2)), IsAlpha(CStringToHex(data, 78, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+			m_PacketDataControlList.InsertItem(listidx, "17", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Checksum");
+			HexTemp.Format("%02X %02X", CStringToHex(data, 80, 2), CStringToHex(data, 82, 2));
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 80, 2)), IsAlpha(CStringToHex(data, 82, 2)));
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+			CString strcnt;
+			m_PacketDataControlList.InsertItem(listidx, "18", 0);
+			m_PacketDataControlList.SetItemText(listidx, 1, "Data");
+			HexTemp = "";
+			StrTemp = "";
+			CString StrTempcat = "";
+			int j = 0, hexcheck = 0;
+			for (int i = 1; i < udpsize + 1; i++)
+			{
+				if (hexcheck++ == 16) {
+					m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+					m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+					strcnt.Format("%d", listidx);
+					m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+					HexTemp = "";
+					StrTemp = "";
+					hexcheck = 1;
+				}
+				HexTemp += data.Mid(84 + j, 2).MakeUpper() + " ";
+				if (protocol == "SSDP") StrTempcat.Format("%c", CStringToHex(data, 84 + j, 2));
+				else if (protocol == "UDP") StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 84 + j, 2)));
+				StrTemp += StrTempcat;
+				j += 2;
+			}
+			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+			m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+		}
 	}
+	
 
 	return 0;
 }
