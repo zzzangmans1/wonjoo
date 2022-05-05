@@ -1,4 +1,4 @@
-﻿
+
 // NetworkPacketCaptureDlg.cpp: 구현 파일
 //
 
@@ -13,6 +13,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+
 using namespace std;
 
 #pragma warning (disable : 4996)
@@ -306,7 +307,9 @@ void CNetworkPacketCaptureDlg::OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pRe
 void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data)
 {
 	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)AfxGetApp()->m_pMainWnd;
+
 	
+
 	if (pDlg->m_eThreadWork == CNetworkPacketCaptureDlg::ThreadWorkingType::THREAD_STOP)
 	{
 		pcap_breakloop(pDlg->m_NetworkDeviceHandler);
@@ -315,8 +318,8 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_PacketDataControlList.DeleteAllItems();
 		return;
 	}
-	pDlg->m_EthernetHeader = (CNetworkPacketCaptureDlg::ETHERNET_HEADER*)data;
-	pDlg->m_IpHeader = (CNetworkPacketCaptureDlg::IP_HEADER*)(data +14);
+	pDlg->m_EthernetHeader = (ETHERNET_HEADER*)data;
+	pDlg->m_IpHeader = (IP_HEADER*)(data +14);
 	pDlg->m_IpHeaderLen = (pDlg->m_IpHeader->header_len & 0xF) * 4;
 	
 
@@ -350,7 +353,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	if (pDlg->m_IpHeader->protocol == IPPROTO_TCP)
 	{
 		pDlg->m_Protocol = "TCP";
-		pDlg->m_TCPHeader = (CNetworkPacketCaptureDlg::TCP_HEADER*) ((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
+		pDlg->m_TCPHeader = (TCP_HEADER*) ((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
 		pDlg->m_TCPPacketInfo.Format("%d -> %d", ntohs(pDlg->m_TCPHeader->src_port), ntohs(pDlg->m_TCPHeader->dst_port));
 		size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
 		CString ListControlCntStr;
@@ -367,7 +370,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	else if(pDlg->m_IpHeader->protocol == IPPROTO_UDP)
 	{
 		pDlg->m_Protocol = "UDP";
-		pDlg->m_UDPHeader = (CNetworkPacketCaptureDlg::UDP_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
+		pDlg->m_UDPHeader = (UDP_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
 		pDlg->m_UDPPacketInfo.Format("%d -> %d Len = %d", ntohs(pDlg->m_UDPHeader->sport), ntohs(pDlg->m_UDPHeader->dport), SWAP16(pDlg->m_UDPHeader->length)-8);
 		if (ntohs(pDlg->m_UDPHeader->dport) == 1900 && pDlg->m_DestinationIp == "239.255.255.250") {
 			pDlg->m_Protocol = "SSDP";
