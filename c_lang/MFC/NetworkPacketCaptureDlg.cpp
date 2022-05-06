@@ -25,6 +25,7 @@ using namespace std;
 
 #define CStringToHex(x,y,z)		strtol(x.Mid(y, z), NULL, 16)	// *** CString to Hex
 #define IsAlpha(x)				isalpha(x) ? x : '.'
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -158,8 +159,8 @@ BOOL CNetworkPacketCaptureDlg::OnInitDialog()
 
 	m_PacketDataControlList.InsertColumn(0, "Num", LVCFMT_LEFT, 0);
 	m_PacketDataControlList.InsertColumn(1, "Data Name", LVCFMT_LEFT, 300);
-	m_PacketDataControlList.InsertColumn(2, "Data Hex", LVCFMT_LEFT, 1000);
-	m_PacketDataControlList.InsertColumn(3, "Data Char", LVCFMT_LEFT, rect.Width()-1300);
+	m_PacketDataControlList.InsertColumn(2, "Data Hex", LVCFMT_LEFT, 500);
+	m_PacketDataControlList.InsertColumn(3, "Data Char", LVCFMT_LEFT, rect.Width()-800);
 	/*
 		SetExtendedStyle() - Control List 스타일 설정 함수
 		LVS_EX_FULLROWSELECT : 한행 전체 선택
@@ -301,7 +302,7 @@ void CNetworkPacketCaptureDlg::OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pRe
 	*pResult = 0;
 }
 
-
+// 쓰레드 동작 함수
 void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data)
 {
 	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)AfxGetApp()->m_pMainWnd;
@@ -349,7 +350,6 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	if (ntohs(pDlg->m_EthernetHeader->type)== 0x806)
 	{
 		pDlg->m_Protocol = "ARP";
-		AfxMessageBox(pDlg->m_Protocol);
 		pDlg->m_ARPHeader = (ARP_HEADER*)(data + 14);
 		pDlg->m_SourceIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
 			pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
@@ -376,9 +376,28 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	}
 	else if (pDlg->m_IpHeader->protocol == IPPROTO_TCP)
 	{
+		int flag_check = 0, spcCnt = 0;
+		CString Flag = "";
 		pDlg->m_Protocol = "TCP";
 		pDlg->m_TCPHeader = (TCP_HEADER*) ((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
+
+		pDlg->m_TCPHeader->flag_urg > 0 ? flag_check++, Flag += "URG " : 0;
+		pDlg->m_TCPHeader->flag_syn > 0 ? flag_check++, Flag += "SYN " : 0;
+		pDlg->m_TCPHeader->flag_rst > 0 ? flag_check++, Flag += "RST " : 0;
+		pDlg->m_TCPHeader->flag_psh > 0 ? flag_check++, Flag += "PSH " : 0;
+		pDlg->m_TCPHeader->flag_fin > 0 ? flag_check++, Flag += "FIN " : 0;
+		pDlg->m_TCPHeader->flag_ece > 0 ? flag_check++, Flag += "ECE " : 0;
+		pDlg->m_TCPHeader->flag_cwr > 0 ? flag_check++, Flag += "CWR " : 0;
+		pDlg->m_TCPHeader->flag_ack > 0 ? flag_check++, Flag += "ACK " : 0;
+		
+		Flag.Insert(0, "[");
+		if (flag_check == 2) {
+			Flag.Insert(4, ",");
+			Flag.Insert(9, "]");
+		}
+		else Flag.Insert(4, "]");
 		pDlg->m_TCPPacketInfo.Format("%d -> %d", ntohs(pDlg->m_TCPHeader->src_port), ntohs(pDlg->m_TCPHeader->dst_port));
+		pDlg->m_TCPPacketInfo += " " + Flag;
 		size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
 		CString ListControlCntStr;
 		ListControlCntStr.Format("%d", ListControlCnt + 1);
@@ -428,7 +447,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	pDlg->m_NetworkInterfaceControlList.EnsureVisible(pDlg->m_NetworkInterfaceControlList.GetItemCount() - 1, FALSE);
 }
 
-// 쓰레드 동작함수 패킷 캡쳐하는 부분
+// 쓰레드 네트워크 인터페이스 세팅
 UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _mothod)
 {
 	CString i_cnt;
@@ -440,7 +459,7 @@ UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _mothod)
 	bpf_u_int32 NetMask = 0;
 
 	char* errbuf = "";
-	const char* filter = "tcp or udp or arp";
+	const char* filter = "tcp or udp or arp or rarp";
 	size_t i = 0;
 
 	/* 
@@ -585,7 +604,6 @@ void CNetworkPacketCaptureDlg::OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT*
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	*pResult = 0;
 }
-
 
 // *** Start 버튼을 눌렀을 때 
 void CNetworkPacketCaptureDlg::OnBnClickedStart()
@@ -904,7 +922,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			TCPTR4_8 = m_PacketInfoTree.InsertItem(TCPTRS4_8, 0, 0, TCPTR4, TVI_LAST);
 			TCPTR4_9 = m_PacketInfoTree.InsertItem(TCPTRS4_9, 0, 0, TCPTR4, TVI_LAST);
 
-			m_PacketInfoTree.Expand(TCPTR4, TVE_EXPAND);
+			
 		}
 
 		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
