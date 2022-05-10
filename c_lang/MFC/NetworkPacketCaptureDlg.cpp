@@ -99,6 +99,7 @@ BEGIN_MESSAGE_MAP(CNetworkPacketCaptureDlg, CDialogEx)
 	ON_COMMAND(ID_TSTART_BUTTON, &CNetworkPacketCaptureDlg::OnTbStartClickedWindows)
 	ON_COMMAND(ID_TSTOP_BUTTON, &CNetworkPacketCaptureDlg::OnTbStopClickedWindows)
 	ON_COMMAND(ID_TCLEAR_BUTTON, & CNetworkPacketCaptureDlg::OnTbClearClickedWindows)
+	ON_COMMAND(ID_source_button, &CAboutDlg::Onsourcebutton)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
 
@@ -1501,4 +1502,10 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 	}
 	else if (answer == IDNO) {	// 아니오
 	}
+}
+
+// *** 메뉴에 소스코드 버튼 누르면
+void CAboutDlg::Onsourcebutton()
+{
+	system("explorer https://github.com/zzzangmans1/wonjoo/tree/main/c_lang/MFC");
 }
