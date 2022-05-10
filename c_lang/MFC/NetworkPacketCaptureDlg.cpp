@@ -1393,6 +1393,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedClear()
 		}
 		else {
 			if (m_eThreadWork == ThreadWorkingType::THREAD_PAUSE) m_PauseButton.SetWindowText("Pause(&P)");
+			m_PCThread->ResumeThread();
 			is_PCThreadStart = FALSE;
 			m_PCThread = NULL;
 			m_PacketInfoTree.DeleteAllItems();
@@ -1401,7 +1402,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedClear()
 			m_eThreadWork = ThreadWorkingType::THREAD_STOP; 
 			Sleep(1000);
 			SetDlgItemText(IDC_STATIC, "THREAD_STATUS: STOP");
-			MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
+			//MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
 		}
 	}
 	else if (answer == IDNO) {	// 아니오
