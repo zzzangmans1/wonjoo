@@ -18,7 +18,7 @@ namespace Example
             string d = DateTime.Now.ToString("yyyy-MM-dd/hh_mm_ss");
             d += ".txt";
             filepath += d;
-            Console.WriteLine(filepath);
+            //Console.WriteLine(filepath);
 
             // 포트 9090으로 서버 설정
             IPEndPoint ipep = new IPEndPoint(IPAddress.Any, 9000);
@@ -82,6 +82,7 @@ namespace Example
                     }
                     // 접속 종료 메시지 콘솔 출력
                     Console.WriteLine("Client disconnected IP address = {0} : {1}", ip.Address, ip.Port);
+                    Console.WriteLine("Save File Name = {0}", filepath);
                     // 클라이언트와 접속이 되면 Thread 생성
                 }, server.Accept());
             }
