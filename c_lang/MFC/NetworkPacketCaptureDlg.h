@@ -17,7 +17,6 @@
 // inet_ntoa가 deprecated가 되었는데.. 사용하려면 아래 설정을 해야 한다.
 #pragma warning(disable:4996)
 #include <stdio.h>
-#include <iostream>
 #include <vector>
 #include <thread>
 // 소켓을 사용하기 위한 라이브러리
