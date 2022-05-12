@@ -1,10 +1,31 @@
-// NetworkPacketCaptureDlg.h: 헤더 파일
+﻿// NetworkPacketCaptureDlg.h: 헤더 파일
 //
 
 #pragma once
 
 #include <pcap/pcap.h>
 #include "Protocol.h"
+#include "ChoiceNetworkInterface.h"   
+#include <locale.h>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <afxsock.h>
+
+// 소켓을 사용하기 위해서 라이브러리 참조해야 한다.
+#pragma comment(lib, "ws2_32")
+// inet_ntoa가 deprecated가 되었는데.. 사용하려면 아래 설정을 해야 한다.
+#pragma warning(disable:4996)
+#include <stdio.h>
+#include <iostream>
+#include <vector>
+#include <thread>
+// 소켓을 사용하기 위한 라이브러리
+#include <WinSock2.h>
+// 수신 버퍼 사이즈
+#define BUFFERSIZE 1024
+
+
 void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data);	// *** 클래스 외에 생성해야 pcap_loop 함수 실행가능
 
 // CNetworkPacketCaptureDlg 대화 상자
@@ -37,6 +58,8 @@ protected:
 public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);										// *** 다이얼로그 백그라운드 컬러 지정할 함수 선언
 
+	afx_msg void Onsourcebutton();
+	afx_msg void OnLogButton();
 	void InitToolBar();															// *** 툴바 생성 함수 선언
 											
 	enum class ThreadWorkingType {
@@ -50,6 +73,8 @@ public:
 	TCP_HEADER* m_TCPHeader;						// *** TCP HEADER
 	UDP_HEADER* m_UDPHeader;						// *** UDP HEADER
 	ARP_HEADER* m_ARPHeader;						// *** ARP HEADER
+	DNS_HEADER* m_DNSHeader;						// *** DNS HEADER
+
 	/*
 	struct pcap_pkthdr {
 		struct timeval ts;       time stamp			캡쳐된 시간정보가 저장된 멤버 ts
@@ -87,17 +112,19 @@ public:
 	int i;
 	int net_dev_idx;
 
-	BOOL is_ClearButtonCheck = FALSE;
 	BOOL is_PCThreadStart = FALSE;													// *** 스레드 체크 변수
+	BOOL is_LOGThreadStart = FALSE;
+
 	CWinThread* m_PCThread;
+	CWinThread* m_LOGThread;
 	ThreadWorkingType m_eThreadWork = ThreadWorkingType::THREAD_STOP;
 
 	// *** 함수
 	afx_msg void OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult);					// *** 컨트롤 리스트에 색상 넣을 함수 선언
-
-	static UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _method);
+	static UINT ThreadClient(LPVOID param);												// *** 소켓 통신 스레드
+	static UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _method);	// *** PC 스레드
 	int SetPacketInfoTree(CString framecnt, CString time, CString protocol, CString lenth, CString savedata);
 	int SetPacketHexList(CString data, CString protocol , int udpsize);
 	afx_msg void OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT* pResult);
