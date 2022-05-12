@@ -8,9 +8,6 @@
 #include "NetworkPacketCaptureDlg.h"
 #include "afxdialogex.h"
 
-using namespace std;
-
-#pragma warning (disable : 4996)
 
 #define FAIL					-1
 
@@ -100,7 +97,6 @@ BEGIN_MESSAGE_MAP(CNetworkPacketCaptureDlg, CDialogEx)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
 
-
 // CNetworkPacketCaptureDlg 메시지 처리기
 
 BOOL CNetworkPacketCaptureDlg::OnInitDialog()
@@ -142,16 +138,14 @@ BOOL CNetworkPacketCaptureDlg::OnInitDialog()
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
 
 	// *** 로그 서버 실행
-	PROCESS_INFORMATION ProcessInfo;
-	STARTUPINFO StartupInfo = { 0 };
 	StartupInfo.lpTitle = "Server";			// *** 프로세스 이름
-
 	StartupInfo.cb = sizeof(STARTUPINFO);
+
 	CreateProcess("C:\\Users\\lenovo\\source\\repos\\SocketServer\\bin\\Debug\\netcoreapp3.1\\SocketServer.exe",
 		NULL, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo, &ProcessInfo);
-	if (ProcessInfo.hProcess)
+	if (!ProcessInfo.hProcess)
 	{
-		AfxMessageBox("서버 생성 성공");
+		AfxMessageBox("Socket Server Process Create Failed");
 	}
 
 	// *** 리스트 컨트롤의 크기를 얻어온다.
@@ -226,6 +220,24 @@ void CNetworkPacketCaptureDlg::OnSysCommand(UINT nID, LPARAM lParam)
 	{
 		CAboutDlg dlgAbout;
 		dlgAbout.DoModal();
+	}
+	// *** 서버 프로그램 스스로 꺼지지 않아서 프로그램 종료 시킬 때 같이 종료시킨다.
+	// *** 종료 버튼을 눌렀다면
+	else if (nID == SC_CLOSE)
+	{
+		// *** YES 버튼을 눌렀다면
+		if (MessageBox("프로그램을 종료하시겠습니까?", "EXIT", MB_YESNO) == IDYES)
+		{
+			TerminateProcess(ProcessInfo.hProcess,0);								// *** 서버 생성한 프로세스 종료
+			DWORD dwResult;
+			::GetExitCodeThread(m_PCThread, &dwResult);
+			PostQuitMessage(0);
+		}
+		// *** NO 버튼을 눌렀다면
+		else
+		{
+
+		}
 	}
 	else
 	{
@@ -325,6 +337,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_PacketDataControlList.DeleteAllItems();
 		return;
 	}
+	pDlg->is_RunThreadOut = FALSE;
 
 	pDlg->m_EthernetHeader = (ETHERNET_HEADER*)data;
 	pDlg->m_IpHeader = (IP_HEADER*)(data +14);
@@ -469,11 +482,17 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		if (pDlg->m_IpHeader->protocol == IPPROTO_UDP) pDlg->SetPacketHexList(SaveData, pDlg->m_Protocol, SWAP16(pDlg->m_UDPHeader->length));
 		else pDlg->SetPacketHexList(SaveData, pDlg->m_Protocol, 0);
 	}
+	pDlg->is_RunThreadOut = TRUE;
+	// *** 스레드를 정지 시켰을 때 애매하게 출력되고 정지되는거 방지
+	if (pDlg->m_eThreadWork == CNetworkPacketCaptureDlg::ThreadWorkingType::THREAD_PAUSE)
+	{
+		pDlg->m_PCThread->SuspendThread();
+	}
 	// 리스트 컨트롤 꽉찰경우 EnsureVisible() 를 사용하여 자동으로 
 	pDlg->m_NetworkInterfaceControlList.EnsureVisible(pDlg->m_NetworkInterfaceControlList.GetItemCount() - 1, FALSE);
 }
 
-// 쓰레드 네트워크 인터페이스 세팅
+// *** 네트워크 인터페이스 세팅 쓰레드 
 UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _mothod)
 {
 	CString i_cnt;
@@ -635,6 +654,7 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	}
 }
 
+// *** 로그 스레드 
 UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
 {
 	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)param;
@@ -691,6 +711,7 @@ UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
 			char input[BUFFERSIZE];
 			// 유저로 부터 입력 받기
 			CString str;
+			// 리스트 아이템 전체다 보내기
 			for (int j = 0; j < 7; j++)
 			{
 				str += pDlg->m_NetworkInterfaceControlList.GetItemText(i, j) + "  ";
@@ -723,7 +744,7 @@ UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
 	WSACleanup();
 
 	pDlg->m_LOGThread = NULL;
-	AfxMessageBox("스레드 종료");
+	AfxMessageBox("Log Client Thread EXIT");
 	return 1;
 }
 
@@ -750,7 +771,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedStart()
 
 		if (m_PCThread != NULL) {
 
-			m_PCThread->m_bAutoDelete = TRUE;
+			m_PCThread->m_bAutoDelete = FALSE;
 		}
 
 		if (m_PCThread == NULL) AfxMessageBox("스레드 생성 실패");
@@ -780,7 +801,8 @@ void CNetworkPacketCaptureDlg::OnBnClickedStop()
 			if (MessageBox(_T("캡처를 멈추시겠습니까?"), _T("캡처 중지"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
 				m_PauseButton.SetWindowText("Resume(&P)");
 				SetDlgItemText(IDC_STATIC, "THREAD_STATUS: PAUSE");
-				m_PCThread->SuspendThread();
+
+				//m_PCThread->SuspendThread();
 				if (m_PCThread == NULL) {
 					m_PCThread;
 				}
@@ -2763,14 +2785,28 @@ void CNetworkPacketCaptureDlg::OnBnClickedClear()
 		}
 		else {
 			if (m_eThreadWork == ThreadWorkingType::THREAD_PAUSE) m_PauseButton.SetWindowText("Pause(&P)");
+			/*
 			m_PCThread->ResumeThread();
 			is_PCThreadStart = FALSE;
 			m_PCThread = NULL;
 			m_PacketInfoTree.DeleteAllItems();
 			m_NetworkInterfaceControlList.DeleteAllItems();
 			m_PacketDataControlList.DeleteAllItems();
-			m_eThreadWork = ThreadWorkingType::THREAD_STOP; 
+			m_eThreadWork = ThreadWorkingType::THREAD_STOP;
 			Sleep(1000);
+			*/
+
+			m_PCThread->SuspendThread();
+			DWORD dwResult;
+			::GetExitCodeThread(m_PCThread,&dwResult);
+			delete m_PCThread;
+			m_PCThread = NULL;
+
+			is_PCThreadStart = FALSE;
+			m_eThreadWork = ThreadWorkingType::THREAD_STOP;
+			m_PacketInfoTree.DeleteAllItems();
+			m_NetworkInterfaceControlList.DeleteAllItems();
+			m_PacketDataControlList.DeleteAllItems();
 			SetDlgItemText(IDC_STATIC, "THREAD_STATUS: STOP");
 			//MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
 		}
@@ -2779,6 +2815,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedClear()
 	}
 }
 
+// *** 툴바 버튼
 void CNetworkPacketCaptureDlg::OnTbStartClickedWindows()
 {
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
@@ -2823,7 +2860,8 @@ void CNetworkPacketCaptureDlg::OnTbStopClickedWindows()
 			if (MessageBox(_T("캡처를 멈추시겠습니까?"), _T("캡처 중지"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
 				m_PauseButton.SetWindowText("Resume(&P)");
 				SetDlgItemText(IDC_STATIC, "THREAD_STATUS: PAUSE");
-				m_PCThread->SuspendThread();
+
+				//m_PCThread->SuspendThread();
 				if (m_PCThread == NULL) {
 					m_PCThread;
 				}
@@ -2860,6 +2898,8 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 		}
 		else {
 			if (m_eThreadWork == ThreadWorkingType::THREAD_PAUSE) m_PauseButton.SetWindowText("Pause(&P)");
+			/*
+			m_PCThread->ResumeThread();
 			is_PCThreadStart = FALSE;
 			m_PCThread = NULL;
 			m_PacketInfoTree.DeleteAllItems();
@@ -2867,8 +2907,21 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 			m_PacketDataControlList.DeleteAllItems();
 			m_eThreadWork = ThreadWorkingType::THREAD_STOP;
 			Sleep(1000);
+			*/
+
+			m_PCThread->SuspendThread();
+			DWORD dwResult;
+			::GetExitCodeThread(m_PCThread, &dwResult);
+			delete m_PCThread;
+			m_PCThread = NULL;
+
+			is_PCThreadStart = FALSE;
+			m_eThreadWork = ThreadWorkingType::THREAD_STOP;
+			m_PacketInfoTree.DeleteAllItems();
+			m_NetworkInterfaceControlList.DeleteAllItems();
+			m_PacketDataControlList.DeleteAllItems();
 			SetDlgItemText(IDC_STATIC, "THREAD_STATUS: STOP");
-			MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
+			//MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
 		}
 	}
 	else if (answer == IDNO) {	// 아니오
@@ -2880,12 +2933,13 @@ void CNetworkPacketCaptureDlg::Onsourcebutton()
 {
 	system("explorer https://github.com/zzzangmans1/wonjoo/tree/main/c_lang/MFC");
 }
+
 // *** 메뉴에 로그 버튼을 누르면
 void CNetworkPacketCaptureDlg::OnLogButton()
 {
 	if (m_LOGThread != NULL)
 	{
-		AfxMessageBox("LOG 스레드 실행중입니다.");
+		AfxMessageBox("LOG thread is running.");
 		return;
 	}
 	//if (m_eThreadWork != ThreadWorkingType::THREAD_PAUSE) return;
@@ -2893,9 +2947,12 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 
 	if (m_LOGThread == NULL)
 	{
-		AfxMessageBox("스레드 생성 실패");
+		AfxMessageBox("Log Client Thread Create Failed");
 		return;
 	}
-	else is_LOGThreadStart = TRUE;
-	AfxMessageBox("스레드 생성 성공");
+	else {
+		is_LOGThreadStart = TRUE;
+		m_LOGThread->m_bAutoDelete = FALSE;
+		AfxMessageBox("Log Client Thread Success");
+	}
 }
