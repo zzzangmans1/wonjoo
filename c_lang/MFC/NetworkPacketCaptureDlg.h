@@ -1,4 +1,4 @@
-﻿// NetworkPacketCaptureDlg.h: 헤더 파일
+// NetworkPacketCaptureDlg.h: 헤더 파일
 //
 
 #pragma once
@@ -11,16 +11,19 @@
 #include <iomanip>
 #include <sstream>
 #include <afxsock.h>
+#include <TlHelp32.h>			// *** 파일 종료할 때 찾는 라이브러리
 
 // 소켓을 사용하기 위해서 라이브러리 참조해야 한다.
 #pragma comment(lib, "ws2_32")
 // inet_ntoa가 deprecated가 되었는데.. 사용하려면 아래 설정을 해야 한다.
 #pragma warning(disable:4996)
-#include <stdio.h>
 #include <vector>
 #include <thread>
 // 소켓을 사용하기 위한 라이브러리
 #include <WinSock2.h>
+
+using namespace std;
+
 // 수신 버퍼 사이즈
 #define BUFFERSIZE 1024
 
@@ -66,6 +69,7 @@ public:
 		THREAD_RUNNING,
 		THREAD_PAUSE
 	};
+
 	ETHERNET_HEADER* m_EthernetHeader;				// *** ETHERNET HEADER
 	IP_HEADER* m_IpHeader;							// *** IP HEADER
 	size_t m_IpHeaderLen;
@@ -113,10 +117,14 @@ public:
 
 	BOOL is_PCThreadStart = FALSE;													// *** 스레드 체크 변수
 	BOOL is_LOGThreadStart = FALSE;
+	BOOL is_RunThreadOut = FALSE;
 
 	CWinThread* m_PCThread;
 	CWinThread* m_LOGThread;
 	ThreadWorkingType m_eThreadWork = ThreadWorkingType::THREAD_STOP;
+
+	PROCESS_INFORMATION ProcessInfo;
+	STARTUPINFO StartupInfo = { 0 };												// *** 로그 서버 실행 변수 선언
 
 	// *** 함수
 	afx_msg void OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult);
