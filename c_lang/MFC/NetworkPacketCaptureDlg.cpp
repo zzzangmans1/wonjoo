@@ -1,4 +1,4 @@
-
+﻿
 // NetworkPacketCaptureDlg.cpp: 구현 파일
 //
 
@@ -7,12 +7,6 @@
 #include "NetworkPacketCapture.h"
 #include "NetworkPacketCaptureDlg.h"
 #include "afxdialogex.h"
-#include <locale.h>
-#include "ChoiceNetworkInterface.h"   
-#include <WinSock2.h>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
 
 using namespace std;
 
@@ -25,6 +19,7 @@ using namespace std;
 
 #define CStringToHex(x,y,z)		strtol(x.Mid(y, z), NULL, 16)	// *** CString to Hex
 #define IsAlpha(x)				isalpha(x) ? x : '.'
+#define CheckAscii(x)			(x > 0x2C && x < 0x123) ? x : '.'
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -50,6 +45,7 @@ public:
 // 구현입니다.
 protected:
 	DECLARE_MESSAGE_MAP()
+public:
 };
 
 CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX)
@@ -99,7 +95,8 @@ BEGIN_MESSAGE_MAP(CNetworkPacketCaptureDlg, CDialogEx)
 	ON_COMMAND(ID_TSTART_BUTTON, &CNetworkPacketCaptureDlg::OnTbStartClickedWindows)
 	ON_COMMAND(ID_TSTOP_BUTTON, &CNetworkPacketCaptureDlg::OnTbStopClickedWindows)
 	ON_COMMAND(ID_TCLEAR_BUTTON, & CNetworkPacketCaptureDlg::OnTbClearClickedWindows)
-	ON_COMMAND(ID_source_button, &CAboutDlg::Onsourcebutton)
+	ON_COMMAND(ID_GITHUB_BUTTON, &CNetworkPacketCaptureDlg::Onsourcebutton)
+	ON_COMMAND(ID_LOG_BUTTON, &CNetworkPacketCaptureDlg::OnLogButton)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
 
@@ -143,6 +140,19 @@ BOOL CNetworkPacketCaptureDlg::OnInitDialog()
 	//  프레임워크가 이 작업을 자동으로 수행합니다.
 	
 	// TODO: 여기에 추가 초기화 작업을 추가합니다.
+
+	// *** 로그 서버 실행
+	PROCESS_INFORMATION ProcessInfo;
+	STARTUPINFO StartupInfo = { 0 };
+	StartupInfo.lpTitle = "Server";			// *** 프로세스 이름
+
+	StartupInfo.cb = sizeof(STARTUPINFO);
+	CreateProcess("C:\\Users\\lenovo\\source\\repos\\SocketServer\\bin\\Debug\\netcoreapp3.1\\SocketServer.exe",
+		NULL, NULL, NULL, FALSE, 0, NULL, NULL, &StartupInfo, &ProcessInfo);
+	if (ProcessInfo.hProcess)
+	{
+		AfxMessageBox("서버 생성 성공");
+	}
 
 	// *** 리스트 컨트롤의 크기를 얻어온다.
 	m_NetworkInterfaceControlList.GetClientRect(&rect);
@@ -295,7 +305,6 @@ void CNetworkPacketCaptureDlg::OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult)
 	
 }
 
-
 void CNetworkPacketCaptureDlg::OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
@@ -320,7 +329,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	pDlg->m_EthernetHeader = (ETHERNET_HEADER*)data;
 	pDlg->m_IpHeader = (IP_HEADER*)(data +14);
 	pDlg->m_IpHeaderLen = (pDlg->m_IpHeader->header_len & 0xF) * 4;
-
+	header->len;
 	// *** u_char* 데이터를 CString으로 변환
 	std::string packet_dump_data_string;
 	for (unsigned int i = 1; i < (header->caplen + 1); i++) {
@@ -415,7 +424,23 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	{
 		pDlg->m_Protocol = "UDP";
 		pDlg->m_UDPHeader = (UDP_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
-		pDlg->m_UDPPacketInfo.Format("%d -> %d Len = %d", ntohs(pDlg->m_UDPHeader->sport), ntohs(pDlg->m_UDPHeader->dport), SWAP16(pDlg->m_UDPHeader->length)-8);
+		pDlg->m_UDPPacketInfo.Format("%d -> %d Len = %d", ntohs(pDlg->m_UDPHeader->sport), ntohs(pDlg->m_UDPHeader->dport), SWAP16(pDlg->m_UDPHeader->length) - 8);
+		if (ntohs(pDlg->m_UDPHeader->sport) == 53 || ntohs(pDlg->m_UDPHeader->dport) == 53)
+		{
+			int infocnt = 0;
+			CString infoStr = "", infoStrtmp= "";
+			pDlg->m_DNSHeader = (DNS_HEADER*)(data + 22 + pDlg->m_IpHeaderLen);//(DNS_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen) + 8;
+			pDlg->m_Protocol = "DNS";
+
+			for (infocnt = (22 + pDlg->m_IpHeaderLen + 13); data[infocnt] != NULL; infocnt++)
+			{
+				infoStrtmp.Format("%c", CheckAscii(data[infocnt]));
+				infoStr += infoStrtmp;
+			}
+			
+			pDlg->m_UDPPacketInfo.Format("Standard query %s 0x%04X %s %s ",pDlg->m_DNSHeader->IsResponse == 0 ? "" : "response", SWAP16(pDlg->m_DNSHeader->Xid), data[infocnt + 2] == 1 ? "A " : " ",infoStr );
+		}
+		
 		if (ntohs(pDlg->m_UDPHeader->dport) == 1900 && pDlg->m_DestinationIp == "239.255.255.250") {
 			pDlg->m_Protocol = "SSDP";
 			int i = 42;
@@ -523,7 +548,7 @@ UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _mothod)
 		BREAK_LOOP_ERROR_MESSAGE = "ERROR";
 	}
 	else if (loop_ret == -2) {
-		BREAK_LOOP_ERROR_MESSAGE = "패킷 종료";
+		BREAK_LOOP_ERROR_MESSAGE = "패킷 스레드 종료";
 	}
 	pDlg->MessageBox(BREAK_LOOP_ERROR_MESSAGE, "LOOP BREAK MEESAGE");
 	pcap_close(phandle);
@@ -539,6 +564,8 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	BOOL bUDPFlag = FALSE;
 	BOOL bSSDPFlag = FALSE;
 	BOOL bARPFlag = FALSE;
+	BOOL bDNSFlag = FALSE;
+
 	NMLVCUSTOMDRAW* pLVCD = (NMLVCUSTOMDRAW*)pNMHDR;
 
 	strType = m_NetworkInterfaceControlList.GetItemText(pLVCD->nmcd.dwItemSpec, 4);
@@ -562,6 +589,11 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	if ((strType.Find(_T("ARP")) != -1))
 	{
 		bARPFlag = TRUE;
+	}
+	
+	if ((strType.Find(_T("DNS")) != -1))
+	{
+		bDNSFlag = TRUE;
 	}
 	*pResult = 0;
 
@@ -590,6 +622,10 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		{
 			pLVCD->clrTextBk = RGB(251, 255, 95);
 		}
+		else if (bDNSFlag)
+		{
+			pLVCD->clrTextBk = RGB(255, 98, 98);
+		}
 		else
 		{
 			pLVCD->clrText = RGB(0, 0, 0);
@@ -597,6 +633,98 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		
 		*pResult = CDRF_DODEFAULT;
 	}
+}
+
+UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
+{
+	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)param;
+	int i = 0;
+	// 소켓 정보 데이터 설정
+	WSADATA wsaData;
+	// 소켓 실행.
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+	{
+		return 1;
+	}
+	// Internet의 Stream 방식으로 소켓 생성
+	SOCKET sock = socket(PF_INET, SOCK_STREAM, 0);
+	// 소켓 주소 설정
+	SOCKADDR_IN addr;
+	// 구조체 초기화
+	memset(&addr, 0, sizeof(addr));
+	// 소켓은 Internet 타입
+	addr.sin_family = AF_INET;
+	// 127.0.0.1(localhost)로 접속하기
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	// 포트 9090으로 접속
+	addr.sin_port = htons(9000);
+	// 접속
+	if (connect(sock, (SOCKADDR*)&addr, sizeof(SOCKADDR_IN)) == SOCKET_ERROR)
+	{
+		// 에러 콘솔 출력
+		AfxMessageBox("connect error");
+		return 1;
+	}
+	// telent은 한글자씩 데이터가 오기 때문에 글자를 모을 buffer가 필요하다.(wchar_t 타입으로 선언)
+	vector<wchar_t> buffer;
+	// 수신 데이터
+	wchar_t x;
+	while (1)
+	{
+		// 데이터를 받는다. 에러가 발생하면 멈춘다.
+		// char* 형식으로 받기 때문에 타입 캐스팅을 한다.
+		if (recv(sock, (char*)&x, sizeof(x), 0) == SOCKET_ERROR)
+		{
+			// 에러 콘솔 출력
+			AfxMessageBox("recv error");
+			break;
+		}
+		// 버퍼에 글자를 하나 넣는다.
+		buffer.push_back(x);
+		// \r\n>\0가 나오면 콘솔에 출력하고 콘솔로 부터 메시지를 기다린다.
+		if (buffer.size() > 4 && *(buffer.end() - 4) == '\r' && *(buffer.end() - 3) == '\n' && *(buffer.end() - 2) == '>' && *(buffer.end() - 1) == '\0')
+		{
+			int idx = pDlg->m_NetworkInterfaceControlList.GetItemCount();
+			// 버퍼 초기화
+			buffer.clear();
+			// 콘솔로 부터 입력을 받는다.
+			char input[BUFFERSIZE];
+			// 유저로 부터 입력 받기
+			CString str;
+			for (int j = 0; j < 7; j++)
+			{
+				str += pDlg->m_NetworkInterfaceControlList.GetItemText(i, j) + "  ";
+			}
+			i++;
+			strcpy(input, str);
+			// 입력받은 길이를 받는다.
+			int size = strlen(input);
+			// 개행을 넣는다.
+			wchar_t buffer[BUFFERSIZE * 2];
+			// char*에서 wchar_t*으로 변환하는 함수
+			mbstowcs(&buffer[0], input, BUFFERSIZE * 2);
+			*(buffer + size) = '\r';
+			*(buffer + size + 1) = '\n';
+			*(buffer + size + 2) = '\0';
+			// 서버로 보내기
+			// send함수가 char* 형식으로 보낼 수 있기 때문에 타입 캐스팅을 한다.
+			send(sock, (char*)buffer, wcslen(buffer) * 2, 0);
+			// 아이템을 다 보냈으면 종료
+			if (i == idx)
+			{
+				break;
+			}
+			continue;
+		}
+	}
+	// 서버 소켓 종료
+	closesocket(sock);
+	// 소켓 종료
+	WSACleanup();
+
+	pDlg->m_LOGThread = NULL;
+	AfxMessageBox("스레드 종료");
+	return 1;
 }
 
 void CNetworkPacketCaptureDlg::OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT* pResult)
@@ -686,6 +814,11 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 				TCPTR4_7=NULL, TCPTR4_8=NULL, TCPTR4_9=NULL;
 	HTREEITEM UDPTR4 = NULL, UDPTR4_1=NULL, UDPTR4_2=NULL, UDPTR4_3=NULL, UDPTR4_4=NULL, UDPTR4_5=NULL;
 	HTREEITEM SSDPTR5 = NULL, SSDPTR5_1 = NULL,SSDPTR5_2 = NULL, SSDPTR5_3 = NULL, SSDPTR5_4 = NULL, SSDPTR5_5 = NULL, SSDPTR5_6 = NULL, SSDPTR5_7 = NULL, SSDPTR5_8 = NULL, SSDPTR5_9;
+	HTREEITEM DNSTR5 = NULL, DNSTR5_1 = NULL, DNSTR5_2 = NULL, DNSTR5_3 = NULL, DNSTR5_4 = NULL, DNSTR5_5=NULL, DNSTR5_6=NULL, DNSTR5_7=NULL, DNSTR5_8=NULL,
+		DNSTR5_2_1, DNSTR5_2_2, DNSTR5_2_3, DNSTR5_2_4, DNSTR5_2_5, DNSTR5_2_6, DNSTR5_2_7, DNSTR5_2_8, DNSTR5_2_9, DNSTR5_2_10,
+		DNSTR5_7_1,
+		DNSTR5_8_1, DNSTR5_8_2, DNSTR5_8_3, DNSTR5_8_4, DNSTR5_8_5, DNSTR5_8_6, DNSTR5_8_7, DNSTR5_8_8, DNSTR5_8_9, DNSTR5_8_10,
+		DNSTR5_8_11, DNSTR5_8_12, DNSTR5_8_13, DNSTR5_8_14, DNSTR5_8_15;
 
 	// *** 트리 초기화
 	m_PacketInfoTree.DeleteAllItems();
@@ -702,6 +835,11 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		TCPTRS4_7, TCPTRS4_8, TCPTRS4_9;
 	CString UDPTRS4, UDPTRS4_1, UDPTRS4_2, UDPTRS4_3, UDPTRS4_4, UDPTRS4_5;
 	CString SSDPTRS5, SSDPTRS5_1, SSDPTRS5_2, SSDPTRS5_3, SSDPTRS5_4, SSDPTRS5_5, SSDPTRS5_6, SSDPTRS5_7, SSDPTRS5_8, SSDPTRS5_9;
+	CString DNSTRS5, DNSTRS5_1, DNSTRS5_2, DNSTRS5_3, DNSTRS5_4, DNSTRS5_5, DNSTRS5_6, DNSTRS5_7, DNSTRS5_8,
+		DNSTRS5_2_1, DNSTRS5_2_2, DNSTRS5_2_3, DNSTRS5_2_4, DNSTRS5_2_5, DNSTRS5_2_6, DNSTRS5_2_7, DNSTRS5_2_8, DNSTRS5_2_9, DNSTRS5_2_10,
+		DNSTRS5_7_1,
+		DNSTRS5_8_1, DNSTRS5_8_2, DNSTRS5_8_3, DNSTRS5_8_4, DNSTRS5_8_5, DNSTRS5_8_6, DNSTRS5_8_7, DNSTRS5_8_8, DNSTRS5_8_9, DNSTRS5_8_10,
+		DNSTRS5_8_11, DNSTRS5_8_12, DNSTRS5_8_13, DNSTRS5_8_14, DNSTRS5_8_15;
 
 	// *** 첫 번째 트리
 	TRS1 = "Frame " + framecnt + ": " + length + " bytes on wire, " + length + " bytes captured on interface \\Device\\NPF_" + m_MyDev->name + ", id 0";
@@ -756,7 +894,8 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		TRS3_11.Format("Source Address: %d.%d.%d.%d", CStringToHex(savedata, 52, 2), CStringToHex(savedata, 54,2), CStringToHex(savedata, 56,2), CStringToHex(savedata, 58,2));			// 52+8
 		TRS3_12.Format("Destination Address: %d.%d.%d.%d", CStringToHex(savedata, 60, 2), CStringToHex(savedata, 62,2), CStringToHex(savedata, 64,2), CStringToHex(savedata, 66,2));	
 		// *** 세 번째 트리 
-	// *** TCP 라면
+		int dnsanswcnt = 0;
+		// *** TCP 라면
 		if (!protocol.Compare("TCP"))
 		{
 			TCPTRS4.Format("Transmission Control Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
@@ -784,7 +923,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			TCPTRS4_9.Format("Urgent Pointer: %d", CStringToHex(savedata, 104, 4));
 		}
 		// *** UDP 라면
-		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
+		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP") || !protocol.Compare("DNS"))
 		{
 			UDPTRS4.Format("User Datagram Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
 			UDPTRS4_1.Format("Source Port: %d", CStringToHex(savedata, 68, 4));
@@ -871,6 +1010,1001 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 					j += 4;
 				}
 			}
+			else if (!protocol.Compare("DNS"))
+			{
+				CString dnstmp, nametmp = "", cnametmp = "";
+				DNSTRS5.Format("Domain Name System (%s)", ((CStringToHex(savedata, 88, 1) >> 3) & 1) > 0 ? "response" : "query");
+				DNSTRS5_1.Format("Transaction ID: 0x%04X", CStringToHex(savedata, 84, 4));
+
+				DNSTRS5_2.Format("Flags: 0x%04X Standard query %s", CStringToHex(savedata, 88, 4), (CStringToHex(savedata, 88, 1) >> 3) > 0 ? "response" : "");
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0) DNSTRS5_2 += ((CStringToHex(savedata, 91, 1) >> 3) & 1 | (CStringToHex(savedata, 90, 1) >> 2) & 1 |
+					(CStringToHex(savedata, 90, 1) >> 1) & 1 | (CStringToHex(savedata, 90, 1) >> 0) & 1) > 0 ? "error" : ", No error";
+				DNSTRS5_2_1.Format("%d... .... .... .... = Response: Message is a %s", (CStringToHex(savedata, 88, 1) >> 3) & 1, (CStringToHex(savedata, 88, 1) >> 3) > 0 ? "response" : "query");
+				DNSTRS5_2_2.Format(".%d%d%d %d... .... .... = Opcode: Standard query (%d)", (CStringToHex(savedata, 88, 1) >> 2) & 1, (CStringToHex(savedata, 88, 1) >> 1) & 1,
+					(CStringToHex(savedata, 88, 1) >> 0) & 1, (CStringToHex(savedata, 89, 1) >> 3) & 1,
+					(CStringToHex(savedata, 88, 1) >> 2) & 1 | (CStringToHex(savedata, 88, 1) >> 1) & 1 | (CStringToHex(savedata, 88, 1) >> 0) & 1 | ((CStringToHex(savedata, 89, 1) >> 3) & 1));
+
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0) DNSTRS5_2_3.Format(".... .%d.. .... .... = Authoritative: Server is not an authority for domain", (CStringToHex(savedata, 89, 1) >> 2) & 1);
+				DNSTRS5_2_4.Format(".... ..%d. .... .... = Truncated: Message is not truncated", (CStringToHex(savedata, 89, 1) >> 1) & 1);
+				DNSTRS5_2_5.Format(".... ...%d .... .... = Recursion desired: Do qeury recursively", (CStringToHex(savedata, 89, 1) >> 0) & 1);
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0) DNSTRS5_2_6.Format(".... .... %d... .... = Recursion available: Server can do recursive queries", (CStringToHex(savedata, 90, 1) >> 3) & 1);
+				DNSTRS5_2_7.Format(".... .... .%d.. .... = Z: reserved (%d)", (CStringToHex(savedata, 90, 1) >> 2) & 1, (CStringToHex(savedata, 90, 1) >> 2) & 1);
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0) DNSTRS5_2_8.Format(".... .... ..%d. .... = Answer authenticated: Answer/authority portion was not authenticated by the server", (CStringToHex(savedata, 90, 1) >> 1) & 1);
+				DNSTRS5_2_9.Format(".... .... ...%d .... = Non-authenticated data: Unacceptable", (CStringToHex(savedata, 90, 1) >> 0) & 1);
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0) DNSTRS5_2_10.Format(".... .... .... %d%d%d%d = Reply code: No error(%d)", (CStringToHex(savedata, 91, 1) >> 3) & 1, (CStringToHex(savedata, 90, 1) >> 2) & 1,
+					(CStringToHex(savedata, 90, 1) >> 1) & 1, (CStringToHex(savedata, 90, 1) >> 0) & 1,
+					((CStringToHex(savedata, 91, 1) >> 3) & 1 | (CStringToHex(savedata, 90, 1) >> 2) & 1 |
+						(CStringToHex(savedata, 90, 1) >> 1) & 1 | (CStringToHex(savedata, 90, 1) >> 0) & 1));
+
+				DNSTRS5_3.Format("Questions: %d", CStringToHex(savedata, 92, 4));
+				DNSTRS5_4.Format("Answer RRs: %d", CStringToHex(savedata, 96, 4));
+				dnsanswcnt = CStringToHex(savedata, 96, 4);
+				DNSTRS5_5.Format("Authority RRs: %d", CStringToHex(savedata, 100, 4));
+				DNSTRS5_6.Format("Additional RRs: %d", CStringToHex(savedata, 104, 4));
+				DNSTRS5_7.Format("Queries");
+				int j = 0;
+				while (CStringToHex(savedata, 108 + j, 2) != 0x00)
+				{
+					dnstmp.Format("%c", IsAlpha(CStringToHex(savedata, 108 + j, 2)));
+					DNSTRS5_7_1 += dnstmp;
+					j += 2;
+				}
+				j += 4;
+				nametmp = DNSTRS5_7_1;
+				DNSTRS5_7_1 += ": type ";
+				DNSTRS5_8_1 = DNSTRS5_7_1;
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_7_1 += "A, class";
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_7_1 += "CNAME, class ";
+					j += 4;
+				}
+
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_7_1 += " IN";
+					j += 8;
+				}
+				else
+				{
+
+				}
+				// *** answers
+				DNSTRS5_8.Format("Answers");
+				int bType = 0;
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_1 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_1 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_1 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_1 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_1 += dnstmp;
+					DNSTRS5_8_2 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_1 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								if (CStringToHex(savedata, 84 +(idx * 2)+ o, 2) == 0xc0)
+								{
+									int thirdidx = CStringToHex(savedata, 108 + j, 2);
+									int z = 0;
+									while (CStringToHex(savedata, 84 + (thirdidx * 2) + z, 2) != 0)
+									{
+										cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (thirdidx * 2) + z, 2)));
+										DNSTRS5_8_1 += cnametmp;
+										nametmp += cnametmp;
+										z += 2;
+									}
+									break;
+								}
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_1 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_1 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_2 = nametmp;
+					j += 6;
+				}
+				/*
+				CString CheckIdx;
+				CheckIdx.Format("%X %X %X %X ", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j+2, 2),
+												CStringToHex(savedata, 108 + j+4, 2), CStringToHex(savedata, 108 + j+6, 2));
+				*/
+				DNSTRS5_8_2 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_2 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_2 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_2 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_2 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_2 += dnstmp;
+					DNSTRS5_8_3 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_2 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								if (CStringToHex(savedata, 84 + (idx * 2) + o, 2) == 0xc0)
+								{
+									int thirdidx = CStringToHex(savedata, 108 + j, 2);
+									int z = 0;
+									while (CStringToHex(savedata, 84 + (thirdidx * 2) + z, 2) != 0)
+									{
+										cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (thirdidx * 2) + z, 2)));
+										DNSTRS5_8_1 += cnametmp;
+										nametmp += cnametmp;
+										z += 2;
+									}
+									break;
+								}
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_2 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_2 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_3 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_3 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_3 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_3 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_3 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_3 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_3 += dnstmp;
+					DNSTRS5_8_4 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_3 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_3 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_3 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_4 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_4 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_4 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_4 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_4 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_4 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_4 += dnstmp;
+					DNSTRS5_8_5 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_4 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_4 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_4 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_5 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_5 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_5 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_5 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_5 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_5 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_5 += dnstmp;
+					DNSTRS5_8_6 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_5 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_5 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_5 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_6 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_6 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_6 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_6 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_6 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_6 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_6 += dnstmp;
+					DNSTRS5_8_7 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_6 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_6 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_6 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_7 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_7 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_7 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_7 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_7 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_7 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_7 += dnstmp;
+					DNSTRS5_8_8 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_7 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_7 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_7 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_8 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_8 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_8 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_8 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_8 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_8 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_8 += dnstmp;
+					DNSTRS5_8_9 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_8 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_8 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_8 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_9 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_9 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_9 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_9 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_9 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_9 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_9 += dnstmp;
+					DNSTRS5_8_10 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_9 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_9 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_9 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_10 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_10 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_10 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_10 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_10 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_10 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_10 += dnstmp;
+					DNSTRS5_8_11 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_10 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_10 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_10 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_11 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_11 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_11 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_11 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_11 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_11 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_11 += dnstmp;
+					DNSTRS5_8_12 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_11 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_11 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_11 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_12 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_12 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_12 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_12 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_12 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_12 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_12 += dnstmp;
+					DNSTRS5_8_13 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_12 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_12 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_12 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_13 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_13 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_13 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_13 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_13 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_13 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_13 += dnstmp;
+					DNSTRS5_8_14 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_13 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_13 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_13 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_14 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_14 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_14 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_14 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_14 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_14 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_14 += dnstmp;
+					DNSTRS5_8_15 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_14 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_14 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_14 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					DNSTRS5_8_15 = nametmp;
+					j += 6;
+				}
+
+				DNSTRS5_8_15 += ": type ";
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_15 += " A, class ";
+					bType = 1;
+					j += 4;
+				}
+				else if (CStringToHex(savedata, 108 + j, 2) == 5)
+				{
+					DNSTRS5_8_15 += " CNAME, class";
+					bType = 0;
+					j += 4;
+				}
+				if (CStringToHex(savedata, 108 + j, 2) == 1)
+				{
+					DNSTRS5_8_15 += " IN";
+					j += 12;
+				}
+				if (bType)		// *** type A
+				{
+					j += 2;
+					DNSTRS5_8_15 += " addr ";
+					dnstmp.Format("%d.%d.%d.%d", CStringToHex(savedata, 108 + j, 2), CStringToHex(savedata, 108 + j + 2, 2)
+						, CStringToHex(savedata, 108 + j + 4, 2), CStringToHex(savedata, 108 + j + 6, 2));
+					DNSTRS5_8_15 += dnstmp;
+					//DNSTRS5_8_16 = nametmp;
+					j += 14;
+				}
+				else if (!bType)	// *** type CNAME
+				{
+					int cnamelength = CStringToHex(savedata, 108 + j, 2);
+					j += 2;
+					DNSTRS5_8_15 += " cname ";
+					nametmp = "";
+					for (int k = 0; k < cnamelength; k++)
+					{
+						if (k == (cnamelength - 2) && (CStringToHex(savedata, 108 + j, 2) == 0xc0))
+						{
+							j += 2;
+							int idx = CStringToHex(savedata, 108 + j, 2);
+							int o = 0;
+							while (CStringToHex(savedata, 84 + (idx * 2) + o, 2) != 0)
+							{
+								cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 84 + (idx * 2) + o, 2)));
+								DNSTRS5_8_15 += cnametmp;
+								nametmp += cnametmp;
+								o += 2;
+							}
+							j += 2;
+							break;
+						}
+						cnametmp.Format("%c", CheckAscii(CStringToHex(savedata, 108 + j, 2)));
+						DNSTRS5_8_15 += cnametmp;
+						nametmp += cnametmp;
+						j += 2;
+					}
+					//DNSTRS5_8_16 = nametmp;
+					j += 6;
+				}
+			}
 		}
 
 		TR1 = m_PacketInfoTree.InsertItem(TRS1, 0, 0, TVI_ROOT, TVI_LAST);
@@ -926,7 +2060,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			
 		}
 
-		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP"))
+		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP") || !protocol.Compare("DNS"))
 		{
 			UDPTR4 = m_PacketInfoTree.InsertItem(UDPTRS4, 0, 0, TVI_ROOT, TVI_LAST);
 			UDPTR4_1 = m_PacketInfoTree.InsertItem(UDPTRS4_1, 0, 0, UDPTR4, TVI_LAST);
@@ -1010,6 +2144,52 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 				if (SSDPTRS5_9.IsEmpty() != TRUE)
 				{
 					SSDPTR5_9 = m_PacketInfoTree.InsertItem(SSDPTRS5_9, 0, 0, SSDPTR5, TVI_LAST);
+				}
+			}
+			else if(!protocol.Compare("DNS"))
+			{
+				DNSTR5 = m_PacketInfoTree.InsertItem(DNSTRS5, 0, 0, TVI_ROOT, TVI_LAST);
+				DNSTR5_1 = m_PacketInfoTree.InsertItem(DNSTRS5_1, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_2 = m_PacketInfoTree.InsertItem(DNSTRS5_2, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_2_1 = m_PacketInfoTree.InsertItem(DNSTRS5_2_1, 0, 0, DNSTR5_2, TVI_LAST);
+				DNSTR5_2_2 = m_PacketInfoTree.InsertItem(DNSTRS5_2_2, 0, 0, DNSTR5_2, TVI_LAST);
+				if((CStringToHex(savedata, 88, 1)>>3) > 0)DNSTR5_2_3 = m_PacketInfoTree.InsertItem(DNSTRS5_2_3, 0, 0, DNSTR5_2, TVI_LAST);
+				DNSTR5_2_4 = m_PacketInfoTree.InsertItem(DNSTRS5_2_4, 0, 0, DNSTR5_2, TVI_LAST);
+				DNSTR5_2_5 = m_PacketInfoTree.InsertItem(DNSTRS5_2_5, 0, 0, DNSTR5_2, TVI_LAST);
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0)DNSTR5_2_6 = m_PacketInfoTree.InsertItem(DNSTRS5_2_6, 0, 0, DNSTR5_2, TVI_LAST);
+				DNSTR5_2_7 = m_PacketInfoTree.InsertItem(DNSTRS5_2_7, 0, 0, DNSTR5_2, TVI_LAST);
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0)DNSTR5_2_8 = m_PacketInfoTree.InsertItem(DNSTRS5_2_8, 0, 0, DNSTR5_2, TVI_LAST);
+				DNSTR5_2_9 = m_PacketInfoTree.InsertItem(DNSTRS5_2_9, 0, 0, DNSTR5_2, TVI_LAST);
+				if ((CStringToHex(savedata, 88, 1) >> 3) > 0)DNSTR5_2_10 = m_PacketInfoTree.InsertItem(DNSTRS5_2_10, 0, 0, DNSTR5_2, TVI_LAST);
+
+				DNSTR5_3 = m_PacketInfoTree.InsertItem(DNSTRS5_3, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_4 = m_PacketInfoTree.InsertItem(DNSTRS5_4, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_5 = m_PacketInfoTree.InsertItem(DNSTRS5_5, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_6 = m_PacketInfoTree.InsertItem(DNSTRS5_6, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_7 = m_PacketInfoTree.InsertItem(DNSTRS5_7, 0, 0, DNSTR5, TVI_LAST);
+				DNSTR5_7_1 = m_PacketInfoTree.InsertItem(DNSTRS5_7_1, 0, 0, DNSTR5_7, TVI_LAST);
+				DNSTR5_8 = m_PacketInfoTree.InsertItem(DNSTRS5_8, 0, 0, DNSTR5, TVI_LAST);
+				// *** answer이 있다면
+				if (dnsanswcnt > 0)
+				{
+					DNSTR5_8_1 = m_PacketInfoTree.InsertItem(DNSTRS5_8_1, 0, 0, DNSTR5_8, TVI_LAST);
+					if(dnsanswcnt >= 2) DNSTR5_8_2 = m_PacketInfoTree.InsertItem(DNSTRS5_8_2, 0, 0, DNSTR5_8, TVI_LAST);
+					if(dnsanswcnt >= 3) DNSTR5_8_3 = m_PacketInfoTree.InsertItem(DNSTRS5_8_3, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 4) DNSTR5_8_4 = m_PacketInfoTree.InsertItem(DNSTRS5_8_4, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 5) DNSTR5_8_5 = m_PacketInfoTree.InsertItem(DNSTRS5_8_5, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 6) DNSTR5_8_6 = m_PacketInfoTree.InsertItem(DNSTRS5_8_6, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 7) DNSTR5_8_7 = m_PacketInfoTree.InsertItem(DNSTRS5_8_7, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 8) DNSTR5_8_8 = m_PacketInfoTree.InsertItem(DNSTRS5_8_8, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 9) DNSTR5_8_9 = m_PacketInfoTree.InsertItem(DNSTRS5_8_9, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 10) DNSTR5_8_10 = m_PacketInfoTree.InsertItem(DNSTRS5_8_10, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 11) DNSTR5_8_11 = m_PacketInfoTree.InsertItem(DNSTRS5_8_11, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 12) DNSTR5_8_12 = m_PacketInfoTree.InsertItem(DNSTRS5_8_12, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 13) DNSTR5_8_13 = m_PacketInfoTree.InsertItem(DNSTRS5_8_13, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 14) DNSTR5_8_14 = m_PacketInfoTree.InsertItem(DNSTRS5_8_14, 0, 0, DNSTR5_8, TVI_LAST);
+					if (dnsanswcnt >= 15) DNSTR5_8_15 = m_PacketInfoTree.InsertItem(DNSTRS5_8_15, 0, 0, DNSTR5_8, TVI_LAST);
+
+					m_PacketInfoTree.Expand(DNSTR5, TVE_EXPAND);
+					m_PacketInfoTree.Expand(DNSTR5_8, TVE_EXPAND);
 				}
 			}
 		}
@@ -1312,7 +2492,7 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 104, 2)), IsAlpha(CStringToHex(data, 106, 2)));
 			m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
 		}
-		else if (protocol == "UDP" || protocol == "SSDP")
+		else if (protocol == "UDP" || protocol == "SSDP" || protocol == "DNS")
 		{
 			m_PacketDataControlList.InsertItem(listidx, "14", 0);
 			m_PacketDataControlList.SetItemText(listidx, 1, "Source Port");
@@ -1341,32 +2521,222 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
 			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 80, 2)), IsAlpha(CStringToHex(data, 82, 2)));
 			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-			CString strcnt;
-			m_PacketDataControlList.InsertItem(listidx, "18", 0);
-			m_PacketDataControlList.SetItemText(listidx, 1, "Data");
-			HexTemp = "";
-			StrTemp = "";
-			CString StrTempcat = "";
-			int j = 0, hexcheck = 0;
-			for (int i = 1; i < udpsize + 1; i++)
+			if (protocol == "UDP" || protocol == "SSDP")
 			{
-				if (hexcheck++ == 16) {
+				CString strcnt;
+				m_PacketDataControlList.InsertItem(listidx, "18", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Data");
+				HexTemp = "";
+				StrTemp = "";
+				CString StrTempcat = "";
+				int j = 0, hexcheck = 0;
+				for (int i = 1; i < udpsize + 1; i++)
+				{
+					if (hexcheck++ == 16) {
+						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+						strcnt.Format("%d", listidx);
+						m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+						HexTemp = "";
+						StrTemp = "";
+						hexcheck = 1;
+					}
+					HexTemp += data.Mid(84 + j, 2).MakeUpper() + " ";
+					if (protocol == "SSDP") StrTempcat.Format("%c", CStringToHex(data, 84 + j, 2));
+					else if (protocol == "UDP") StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 84 + j, 2)));
+					StrTemp += StrTempcat;
+					j += 2;
+				}
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+			}
+			else if (protocol == "DNS")
+			{
+				m_PacketDataControlList.InsertItem(listidx, "18", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Transaction ID:");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 84, 2), CStringToHex(data, 86, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 84, 2)), IsAlpha(CStringToHex(data, 86, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "19", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Flags:");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 88, 2), CStringToHex(data, 90, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 88, 2)), IsAlpha(CStringToHex(data, 90, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "20", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Questions:");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 92, 2), CStringToHex(data, 94, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 92, 2)), IsAlpha(CStringToHex(data, 94, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "21", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Answer RRs:");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 96, 2), CStringToHex(data, 98, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 96, 2)), IsAlpha(CStringToHex(data, 98, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "22", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Authority RRs:");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 100, 2), CStringToHex(data, 102, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 100, 2)), IsAlpha(CStringToHex(data, 102, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "23", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Additional RRs:");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 104, 2), CStringToHex(data, 106, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 104, 2)), IsAlpha(CStringToHex(data, 106, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "24", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Queries");
+
+				HexTemp = "";
+				StrTemp = "";
+				CString StrTempcat = "";
+				int j = 0;
+				while (CStringToHex(data, 108+ j, 2) != 0)
+				{
+					HexTemp += data.Mid(108 + j, 2).MakeUpper() + " ";
+					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 108 + j, 2)));
+					StrTemp += StrTempcat;
+					j += 2;
+				}
+				j += 2;
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "25", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "type");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "26", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "class");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 108 + j + 4, 2), CStringToHex(data, 108 + j + 6, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j + 4, 2)), IsAlpha(CStringToHex(data, 108 + j + 6, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+				j += 8;
+
+				CString strcnt;
+				strcnt.Format("%d", listidx);
+
+				m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Answers");
+				for (int i = 0; i < CStringToHex(data, 98, 2); i++)						// *** Answers 카운트 만큼 
+				{
+					HexTemp.Format("%02X %02X", CStringToHex(data, 108+j, 2), CStringToHex(data, 108 + j+2, 2));
 					m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+					StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108+j+2, 2)));
+					m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+					j += 4;
+					strcnt.Format("%d", listidx);
+					
+					if (CStringToHex(data, 108 + j, 2) == 0xc0)
+					{
+						m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+						m_PacketDataControlList.SetItemText(listidx, 1, "Pointer");
+						HexTemp.Format("%02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2));
+						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+						StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)));
+						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+						j += 4;
+						strcnt.Format("%d", listidx);
+					}
+					m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+					m_PacketDataControlList.SetItemText(listidx, 1, "type");
+					HexTemp.Format("%02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2));
+					int type = CStringToHex(data, 108 + j + 2, 2);
+					m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+					StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)));
 					m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 					strcnt.Format("%d", listidx);
+					j += 4;
+
 					m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
-					HexTemp = "";
-					StrTemp = "";
-					hexcheck = 1;
+					m_PacketDataControlList.SetItemText(listidx, 1, "class");
+					HexTemp.Format("%02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2));
+					m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+					StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)));
+					m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+					strcnt.Format("%d", listidx);
+					j += 4;
+
+					m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+					m_PacketDataControlList.SetItemText(listidx, 1, "Time to live");
+					HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2),
+															CStringToHex(data, 108 + j+4, 2), CStringToHex(data, 108 + j + 6, 2));
+					m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+					StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)),
+													IsAlpha(CStringToHex(data, 108 + j + 4, 2)), IsAlpha(CStringToHex(data, 108 + j + 6, 2)));
+					m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+					strcnt.Format("%d", listidx);
+					j += 8;
+
+					m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+					m_PacketDataControlList.SetItemText(listidx, 1, "Data length");
+					HexTemp.Format("%02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2));
+					m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+					StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)));
+					m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+					strcnt.Format("%d", listidx);
+					j += 4;
+
+					if (type == 1)
+					{
+						m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+						m_PacketDataControlList.SetItemText(listidx, 1, "Address");
+						HexTemp.Format("%02X %02X %02X %02X", CStringToHex(data, 108 + j, 2), CStringToHex(data, 108 + j + 2, 2),
+																CStringToHex(data, 108 + j+4, 2), CStringToHex(data, 108 + j + 6, 2));
+						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+						StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 108 + j, 2)), IsAlpha(CStringToHex(data, 108 + j + 2, 2)),
+														IsAlpha(CStringToHex(data, 108 + j+4, 2)), IsAlpha(CStringToHex(data, 108 + j + 6, 2)));
+						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+						strcnt.Format("%d", listidx);
+						j += 8;
+						if (i != CStringToHex(data, 98, 2) - 1)
+						{
+							m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+							m_PacketDataControlList.SetItemText(listidx, 1, "Pointer");
+
+						}
+					}
+					else if (type == 5)
+					{
+						m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+						m_PacketDataControlList.SetItemText(listidx, 1, "CNAME");
+						HexTemp = "";
+						StrTemp = "";
+						while (CStringToHex(data, 108 + j, 2) != 0xC0)
+						{
+							HexTemp += data.Mid(108 + j, 2).MakeUpper() + " ";
+							StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 108 + j, 2)));
+							StrTemp += StrTempcat;
+							j += 2;
+						}
+						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+						strcnt.Format("%d", listidx);
+						if (i != CStringToHex(data, 98, 2) - 1)
+						{
+							m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+							m_PacketDataControlList.SetItemText(listidx, 1, "Pointer");
+
+						}
+					}
 				}
-				HexTemp += data.Mid(84 + j, 2).MakeUpper() + " ";
-				if (protocol == "SSDP") StrTempcat.Format("%c", CStringToHex(data, 84 + j, 2));
-				else if (protocol == "UDP") StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 84 + j, 2)));
-				StrTemp += StrTempcat;
-				j += 2;
+				
 			}
-			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-			m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+			
 		}
 	}
 	
@@ -1506,7 +2876,26 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 }
 
 // *** 메뉴에 소스코드 버튼 누르면
-void CAboutDlg::Onsourcebutton()
+void CNetworkPacketCaptureDlg::Onsourcebutton()
 {
 	system("explorer https://github.com/zzzangmans1/wonjoo/tree/main/c_lang/MFC");
+}
+// *** 메뉴에 로그 버튼을 누르면
+void CNetworkPacketCaptureDlg::OnLogButton()
+{
+	if (m_LOGThread != NULL)
+	{
+		AfxMessageBox("LOG 스레드 실행중입니다.");
+		return;
+	}
+	//if (m_eThreadWork != ThreadWorkingType::THREAD_PAUSE) return;
+	m_LOGThread = AfxBeginThread(ThreadClient, this);
+
+	if (m_LOGThread == NULL)
+	{
+		AfxMessageBox("스레드 생성 실패");
+		return;
+	}
+	else is_LOGThreadStart = TRUE;
+	AfxMessageBox("스레드 생성 성공");
 }
