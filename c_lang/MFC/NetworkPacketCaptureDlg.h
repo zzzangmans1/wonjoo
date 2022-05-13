@@ -1,4 +1,4 @@
-// NetworkPacketCaptureDlg.h: 헤더 파일
+﻿// NetworkPacketCaptureDlg.h: 헤더 파일
 //
 
 #pragma once
@@ -110,6 +110,18 @@ public:
 	CString m_ARPPacketInfo;
 	CString m_PacketSaveData;
 
+	// 1. 사용할 변수 및 정렬 정보를 담은 구조체 선언
+   // 정렬 방식에 대한 BOOL 변수
+	BOOL m_bAscending;
+	// 구조체에 정보를 담아서 파라메터로 넘기기 위해서 사용
+	struct SORTPARAM
+	{
+		int iSortColumn;
+		bool bSortDirect;
+		CListCtrl* pList;
+		int flag = -1;  // 클릭한 header에 따라서 정렬할 값이 다르기 때문에 구분해주기위한 변수
+	};
+
 	size_t click_index;															// *** 클릭한 인덱스 
 	int ClickPacketFrameNumber = 0;
 	int i;
@@ -125,7 +137,8 @@ public:
 
 	PROCESS_INFORMATION ProcessInfo;
 	STARTUPINFO StartupInfo = { 0 };												// *** 로그 서버 실행 변수 선언
-
+		// 2. 클릭시 이벤트 추가 및 정렬에 사용할 함수 선언
+	
 	// *** 함수
 	afx_msg void OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pResult);
@@ -133,6 +146,7 @@ public:
 	static UINT ThreadClient(LPVOID param);												// *** 소켓 통신 스레드
 	static UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _method);	// *** PC 스레드
 	int SetPacketInfoTree(CString framecnt, CString time, CString protocol, CString lenth, CString savedata);
+	static int CALLBACK CompareItem(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort);		// *** SORT 처리 함수
 	int SetPacketHexList(CString data, CString protocol , int udpsize);
 	afx_msg void OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnBnClickedStart();
@@ -141,4 +155,5 @@ public:
 	afx_msg void OnTbStartClickedWindows();												// *** 툴바 클릭 시 이벤트 함수
 	afx_msg void OnTbStopClickedWindows();
 	afx_msg void OnTbClearClickedWindows();
+	afx_msg void OnHdnItemclickList1(NMHDR* pNMHDR, LRESULT* pResult);						// *** SORT 칼럼 클릭 했을 때 
 };
