@@ -606,7 +606,6 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		bSSDPFlag = TRUE;
 	}
 
-
 	if ((strType.Find(_T("ARP")) != -1))
 	{
 		bARPFlag = TRUE;
@@ -837,12 +836,13 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 	// *** 트리 변수 선언
 	HTREEITEM TR1 = NULL, TR1_1=NULL, TR1_2=NULL, TR1_3=NULL, TR1_4=NULL, TR1_5=NULL, TR1_6=NULL;
 	HTREEITEM TR2 = NULL, TR2_1=NULL, TR2_2=NULL, TR2_3=NULL;
-	HTREEITEM TR3 = NULL, TR3_1=NULL, TR3_2=NULL, TR3_3=NULL, TR3_4=NULL, TR3_5=NULL, TR3_6=NULL, TR3_7=NULL, TR3_8=NULL, TR3_9=NULL, TR3_10=NULL, TR3_11=NULL, TR3_12=NULL;
+	HTREEITEM TR3 = NULL, TR3_1=NULL, TR3_2=NULL, TR3_3=NULL, TR3_4=NULL, TR3_5=NULL, TR3_6=NULL, TR3_7=NULL, TR3_8=NULL, TR3_9=NULL, TR3_10=NULL, TR3_11=NULL, TR3_12=NULL
+					, TR3_6_1 = NULL, TR3_6_2 = NULL, TR3_6_3 = NULL;
 	HTREEITEM ARPTR3 = NULL, ARPTR3_1 = NULL, ARPTR3_2 =NULL, ARPTR3_3 =NULL, ARPTR3_4 =NULL, ARPTR3_5=NULL, ARPTR3_6=NULL, ARPTR3_7=NULL, ARPTR3_8=NULL, ARPTR3_9=NULL;
 	HTREEITEM TCPTR4 = NULL, TCPTR4_1 = NULL, TCPTR4_2 = NULL, TCPTR4_3 = NULL, TCPTR4_4 = NULL, TCPTR4_5 = NULL,
 		TCPTR4_6 = NULL, TCPTR4_6_1 = NULL, TCPTR4_6_2 = NULL, TCPTR4_6_3 = NULL, TCPTR4_6_4 = NULL, TCPTR4_6_5 = NULL, TCPTR4_6_6 = NULL,
 		TCPTR4_6_7 = NULL, TCPTR4_6_8 = NULL, TCPTR4_6_9 = NULL, TCPTR4_6_10 = NULL,
-				TCPTR4_7=NULL, TCPTR4_8=NULL, TCPTR4_9=NULL;
+				TCPTR4_7=NULL, TCPTR4_8=NULL, TCPTR4_9=NULL, TCPTR4_10 = NULL;
 	HTREEITEM UDPTR4 = NULL, UDPTR4_1=NULL, UDPTR4_2=NULL, UDPTR4_3=NULL, UDPTR4_4=NULL, UDPTR4_5=NULL;
 	HTREEITEM SSDPTR5 = NULL, SSDPTR5_1 = NULL,SSDPTR5_2 = NULL, SSDPTR5_3 = NULL, SSDPTR5_4 = NULL, SSDPTR5_5 = NULL, SSDPTR5_6 = NULL, SSDPTR5_7 = NULL, SSDPTR5_8 = NULL, SSDPTR5_9;
 	HTREEITEM DNSTR5 = NULL, DNSTR5_1 = NULL, DNSTR5_2 = NULL, DNSTR5_3 = NULL, DNSTR5_4 = NULL, DNSTR5_5=NULL, DNSTR5_6=NULL, DNSTR5_7=NULL, DNSTR5_8=NULL,
@@ -858,12 +858,13 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 	// *** 트리 데이터 선언
 	CString TRS1, TRS1_1, TRS1_2, TRS1_3, TRS1_4, TRS1_5, TRS1_6;
 	CString TRS2, TRS2_1, TRS2_2, TRS2_3;
-	CString TRS3, TRS3_1, TRS3_2, TRS3_3, TRS3_4, TRS3_5, TRS3_6, TRS3_7, TRS3_8, TRS3_9, TRS3_10, TRS3_11, TRS3_12;
+	CString TRS3, TRS3_1, TRS3_2, TRS3_3, TRS3_4, TRS3_5, TRS3_6, TRS3_7, TRS3_8, TRS3_9, TRS3_10, TRS3_11, TRS3_12,
+			TRS3_6_1, TRS3_6_2, TRS3_6_3;
 	CString ARPTRS3, ARPTRS3_1, ARPTRS3_2, ARPTRS3_3, ARPTRS3_4, ARPTRS3_5, ARPTRS3_6, ARPTRS3_7, ARPTRS3_8, ARPTRS3_9;
 	CString TCPTRS4, TCPTRS4_1, TCPTRS4_2, TCPTRS4_3, TCPTRS4_4, TCPTRS4_5, TCPTRS4_6,
 		TCPTRS4_6_1, TCPTRS4_6_2, TCPTRS4_6_3, TCPTRS4_6_4, TCPTRS4_6_5,
 		TCPTRS4_6_6, TCPTRS4_6_7, TCPTRS4_6_8, TCPTRS4_6_9, TCPTRS4_6_10,
-		TCPTRS4_7, TCPTRS4_8, TCPTRS4_9;
+		TCPTRS4_7, TCPTRS4_8, TCPTRS4_9, TCPTRS4_10;
 	CString UDPTRS4, UDPTRS4_1, UDPTRS4_2, UDPTRS4_3, UDPTRS4_4, UDPTRS4_5;
 	CString SSDPTRS5, SSDPTRS5_1, SSDPTRS5_2, SSDPTRS5_3, SSDPTRS5_4, SSDPTRS5_5, SSDPTRS5_6, SSDPTRS5_7, SSDPTRS5_8, SSDPTRS5_9;
 	CString DNSTRS5, DNSTRS5_1, DNSTRS5_2, DNSTRS5_3, DNSTRS5_4, DNSTRS5_5, DNSTRS5_6, DNSTRS5_7, DNSTRS5_8,
@@ -912,6 +913,10 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		TRS3_5.Format("Identification: 0x%04X (%d)", CStringToHex(savedata, 36, 4), CStringToHex(savedata, 36, 4));
 
 		TRS3_6.Format("Flags: 0x%02X", CStringToHex(savedata, 40, 2));
+		TRS3_6_1.Format("%d... .... = Reserved bit: %s", (CStringToHex(savedata, 40, 1) >> 3) & 1, ((CStringToHex(savedata, 40, 1) >> 3) & 1) > 0 ? "Set" : "Not set");
+		TRS3_6_2.Format(".%d.. .... = Don't fragment: %s", (CStringToHex(savedata, 40, 1) >> 2) & 1, ((CStringToHex(savedata, 40, 1) >> 2) & 1) > 0 ? "Set" : "Not set");
+		TRS3_6_3.Format("..%d. .... = More fragments: %s", (CStringToHex(savedata, 40, 1) >> 1) & 1, ((CStringToHex(savedata, 40, 1) >> 1) & 1) > 0 ? "Set" : "Not set");
+		
 		TRS3_7.Format("...%d %d%d%d%d %d%d%d%d %d%d%d%d = Fragment Offset: %X", (CStringToHex(savedata, 40, 4) >> 12) & 1, (CStringToHex(savedata, 40, 4) >> 11) & 1, (CStringToHex(savedata, 40, 4) >> 10) & 1,
 			(CStringToHex(savedata, 40, 4) >> 9) & 1, (CStringToHex(savedata, 40, 4) >> 8) & 1, (CStringToHex(savedata, 40, 4) >> 7) & 1, (CStringToHex(savedata, 40, 4) >> 6) & 1,
 			(CStringToHex(savedata, 40, 4) >> 5) & 1, (CStringToHex(savedata, 40, 4) >> 4) & 1, (CStringToHex(savedata, 40, 4) >> 3) & 1, (CStringToHex(savedata, 40, 4) >> 2) & 1,
@@ -938,7 +943,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 				(CStringToHex(savedata, 92, 1) >> 0) & 1, CStringToHex(savedata, 92, 1) * 4, CStringToHex(savedata, 92, 1));
 			TCPTRS4_6.Format("Flags: 0x%X", CStringToHex(savedata, 93, 3));
 			TCPTRS4_6_1.Format("%d%d%d. .... .... = Reserved: %s", (CStringToHex(savedata, 93, 1) >> 3) & 1, (CStringToHex(savedata, 93, 1) >> 2) & 1, (CStringToHex(savedata, 93, 1) >> 1) & 1,
-				((CStringToHex(savedata, 93, 1) >> 1) & 0xFFF) > 0 ? "Set" : "Not Set");
+				((CStringToHex(savedata, 93, 1) >> 1) & 0x7) > 0 ? "Set" : "Not Set");
 			TCPTRS4_6_2.Format("...%d .... .... = Nonce: %s", CStringToHex(savedata, 93, 1) & 1, (CStringToHex(savedata, 93, 1) & 1) > 0 ? "Set" : "Not Set");
 			TCPTRS4_6_3.Format(".... %d... .... = Congestion Window Reduced (CWR): %s", (CStringToHex(savedata, 94, 1) >> 3) & 1, ((CStringToHex(savedata, 94, 1) >> 3) & 1) > 0 ? "Set" : "Not Set");
 			TCPTRS4_6_4.Format(".... .%d.. .... = ECN-Echo: %s", (CStringToHex(savedata, 94, 1) >> 2) & 1, ((CStringToHex(savedata, 94, 1) >> 2) & 1) > 0 ? "Set" : "Not Set");
@@ -952,6 +957,11 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			TCPTRS4_7.Format("Window: %d", CStringToHex(savedata, 96, 4));
 			TCPTRS4_8.Format("Checksum: 0x%X", CStringToHex(savedata, 100, 4));
 			TCPTRS4_9.Format("Urgent Pointer: %d", CStringToHex(savedata, 104, 4));
+			// *** IP Header에 Total Length가 40이상이면 TCP Payload 존재
+			if (CStringToHex(savedata, 32, 4) > 40)
+			{
+				TCPTRS4_10.Format("TCP Payload (%d byte)", CStringToHex(savedata, 32, 4) - 40);
+			}
 		}
 		// *** UDP 라면
 		else if (!protocol.Compare("UDP") || !protocol.Compare("SSDP") || !protocol.Compare("DNS"))
@@ -2058,6 +2068,10 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		TR3_4 = m_PacketInfoTree.InsertItem(TRS3_4, 0, 0, TR3, TVI_LAST);
 		TR3_5 = m_PacketInfoTree.InsertItem(TRS3_5, 0, 0, TR3, TVI_LAST);
 		TR3_6 = m_PacketInfoTree.InsertItem(TRS3_6, 0, 0, TR3, TVI_LAST);
+		TR3_6_1 = m_PacketInfoTree.InsertItem(TRS3_6_1, 0, 0, TR3_6, TVI_LAST);
+		TR3_6_2 = m_PacketInfoTree.InsertItem(TRS3_6_2, 0, 0, TR3_6, TVI_LAST);
+		TR3_6_3 = m_PacketInfoTree.InsertItem(TRS3_6_3, 0, 0, TR3_6, TVI_LAST);
+
 		TR3_7 = m_PacketInfoTree.InsertItem(TRS3_7, 0, 0, TR3, TVI_LAST);
 		TR3_8 = m_PacketInfoTree.InsertItem(TRS3_8, 0, 0, TR3, TVI_LAST);
 		TR3_9 = m_PacketInfoTree.InsertItem(TRS3_9, 0, 0, TR3, TVI_LAST);
@@ -2087,7 +2101,11 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			TCPTR4_7 = m_PacketInfoTree.InsertItem(TCPTRS4_7, 0, 0, TCPTR4, TVI_LAST);
 			TCPTR4_8 = m_PacketInfoTree.InsertItem(TCPTRS4_8, 0, 0, TCPTR4, TVI_LAST);
 			TCPTR4_9 = m_PacketInfoTree.InsertItem(TCPTRS4_9, 0, 0, TCPTR4, TVI_LAST);
-
+			// *** IP Header에 Total Length가 40이상이면 TCP Payload 존재
+			if (CStringToHex(savedata, 32, 4) > 40)
+			{
+				TCPTR4_10 = m_PacketInfoTree.InsertItem(TCPTRS4_10, 0, 0, TCPTR4, TVI_LAST);
+			}
 			
 		}
 
@@ -2558,7 +2576,36 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 			HexTemp.Format("%02X %02X", CStringToHex(data, 104, 2), CStringToHex(data, 106, 2));
 			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
 			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 104, 2)), IsAlpha(CStringToHex(data, 106, 2)));
-			m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+			// *** IP Header에 Total Length가 40 이상이면 데이터가 더 존재
+			if (CStringToHex(data, 32, 4)-40 > 1)
+			{
+				CString strcnt;
+				m_PacketDataControlList.InsertItem(listidx, "23", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Data");
+				HexTemp = "";
+				StrTemp = "";
+				CString StrTempcat = "";
+				int t, j=0, hexcheck = 0;
+				for (t = 0; t < CStringToHex(data, 32, 4) - 40; t++)
+				{
+					if (hexcheck++ == 16) {
+						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+						strcnt.Format("%d", listidx);
+						m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+						HexTemp = "";
+						StrTemp = "";
+						hexcheck = 1;
+					}
+					HexTemp += data.Mid(108 + j, 2).MakeUpper() + " ";
+					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 108 + j, 2)));
+					StrTemp += StrTempcat;
+					j += 2;
+				}
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+			}
 		}
 		else if (protocol == "UDP" || protocol == "SSDP" || protocol == "DNS")
 		{
@@ -2974,6 +3021,7 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 	}
 }
 
+// *** 컨트롤 리스트 헤더 눌렀을 떄 이벤트
 void CNetworkPacketCaptureDlg::OnHdnItemclickList1(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
