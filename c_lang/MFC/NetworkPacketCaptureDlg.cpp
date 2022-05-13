@@ -3007,17 +3007,28 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 		AfxMessageBox("LOG thread is running.");
 		return;
 	}
-	//if (m_eThreadWork != ThreadWorkingType::THREAD_PAUSE) return;
-	m_LOGThread = AfxBeginThread(ThreadClient, this);
 
+	if (m_NetworkInterfaceControlList.GetItemCount() == 0) {
+		AfxMessageBox("The control list is empty.");
+		return;
+	}
+	// *** Thread가 NULL이 아니고, Control List 값이 있으면 스레드 실행
+	else {
+
+		m_LOGThread = AfxBeginThread(ThreadClient, this);
+	}
+	// *** 스레드 생성 실패
 	if (m_LOGThread == NULL)
 	{
 		AfxMessageBox("Log Client Thread Create Failed");
 		return;
 	}
-	else {
+	// *** 스레드 생성 성공
+	else 
+	{
 		is_LOGThreadStart = TRUE;
 		m_LOGThread->m_bAutoDelete = FALSE;
-		AfxMessageBox("Log Client Thread Success");
+		//AfxMessageBox("Log Client Thread Success");
 	}
+	return;
 }
