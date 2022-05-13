@@ -57,11 +57,6 @@ namespace Example
                             // 개행 + \n이면 콘솔 출력한다.
                             if (sb.Length >= 2 && sb[sb.Length - 2] == '\r' && sb[sb.Length - 1] == '\n')
                             {
-                                // exit면 접속을 끊는다.
-                                if (sb.Length >= 4 && sb[sb.Length - 4] == 'e' && sb[sb.Length - 3] == 'x' && sb[sb.Length - 2] == 'i' && sb[sb.Length - 1] == 't')
-                                {
-                                    break;
-                                }
                                 // 버퍼의 메시지를 콘솔에 출력
                                 string msg = sb.ToString();
                                 // echo 메시지 전송
@@ -79,6 +74,7 @@ namespace Example
                     catch
                     {
                         // 에러 발생하면 종료
+                        Console.WriteLine("thread error");
                     }
                     // 접속 종료 메시지 콘솔 출력
                     Console.WriteLine("Client disconnected IP address = {0} : {1}", ip.Address, ip.Port);
