@@ -37,12 +37,11 @@ BOOL ChoiceNetworkInterface::OnInitDialog()
 	//::SetWindowPos(this->m_hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);	// *** 윈도우 켜질 때 항상위 고정
 
 	SetDlgItemText(IDC_STATIC, "CHOICE NETWORK INTERFACE : ");
-	m_brush.CreateSolidBrush(RGB(255, 255, 255));
+
 	m_Progress.SetRange(0, 100);
-	m_Progress.SetPos(m_Progress.GetPos() + 10);
+	m_brush.CreateSolidBrush(RGB(255, 255, 255));
 	// *** 리스트 컨트롤의 크기를 얻어온다.
 	m_Netwrok_Interface.GetClientRect(&rect);
-	m_Progress.SetPos(m_Progress.GetPos() + 10);
 	// *** 리스트 컨트롤의 칼럼을 추가
 	m_Netwrok_Interface.InsertColumn(0, _T("No."), LVCFMT_LEFT, 50);
 	m_Netwrok_Interface.InsertColumn(1, _T("Name"), LVCFMT_LEFT, 300);
@@ -60,16 +59,19 @@ BOOL ChoiceNetworkInterface::OnInitDialog()
 	Logfont.lfHeight = 15;
 	font.CreateFontIndirect(&Logfont);
 
+	for (int i = 0; i < 100; i++)
+	{
+		m_Progress.SetPos(m_Progress.GetPos() + 1);
+	}
+
 	GetDlgItem(IDC_STATIC)->SetFont(&font);
 	GetDlgItem(IDC_STATIC)->SetFont(&font);
 
-	m_Progress.SetPos(m_Progress.GetPos() + 10);
 	if (pcap_findalldevs(&alldevs, errbuf) == -1)
 	{
 		AfxMessageBox(_T("pcap_findalldevs error :"));
 		return 0;
 	}
-	m_Progress.SetPos(m_Progress.GetPos() + 10);
 	for (choice_dev = alldevs; choice_dev; choice_dev = choice_dev->next)
 	{
 		strcnt.Format(_T("%d"), i + 1);
@@ -78,7 +80,6 @@ BOOL ChoiceNetworkInterface::OnInitDialog()
 		m_Netwrok_Interface.SetItemText(i, 2, (LPCTSTR)choice_dev->description);
 		i++;
 	}
-	m_Progress.SetPos(100);
 	/* list control 이 클릭하면 행 맨앞 열만 선택이 된다. 그래서 SetExtendedStyle 함수를 사용하여 전체 열을 선택하게 바꿀 것이다.
 	LVS_EX_FULLROWSELECT 만 적용되면 전체 선택되대 열의 선이 보이지 않는다.
 	LVS_EX_GRIDLINES를 적용하면 선택 시 열의 선이 보이게 한다.
