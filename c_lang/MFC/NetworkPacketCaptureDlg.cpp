@@ -737,14 +737,21 @@ UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
 			{
 				break;
 			}
+			else if (i > idx) {
+				DWORD dwResult;
+				::GetExitCodeThread(pDlg->m_LOGThread, &dwResult);
+				AfxMessageBox("count up error Thread EXIT");
+				return 1;
+			}
 			continue;
 		}
 	}
+
+
 	// 서버 소켓 종료
 	closesocket(sock);
 	// 소켓 종료
 	WSACleanup();
-
 	pDlg->m_LOGThread = NULL;
 	AfxMessageBox("Log Client Thread EXIT");
 	return 1;
