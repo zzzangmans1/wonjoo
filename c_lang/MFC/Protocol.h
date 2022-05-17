@@ -57,6 +57,15 @@ typedef struct tcp_header
 	unsigned short up;
 
 }TCP_HEADER;
+typedef struct tcp_header_payload
+{
+	unsigned char opaquetype;
+	unsigned char ver1;
+	unsigned char ver2;
+	unsigned char leng1;
+	unsigned char leng2;
+
+}TCP_HEADER_PAYLOAD;
 typedef struct udp_header
 {
 	unsigned short sport;
@@ -75,4 +84,14 @@ typedef struct arp_header {
 	ETHER_ADDR targetmac;
 	IN_ADDR targetip;
 }ARP_HEADER;
+/*
+typedef struct dns_header {
+	unsigned short transactionid;					// *** 시퀀스 넘버
+	unsigned short flags;							// *** DNS 메시지 타입
+	unsigned short numberofquestions;				// *** 질의 갯수
+	unsigned short numberofanswersection;			// *** 응답 필드의 갯수
+	unsigned short numberofauthoritysection;		// *** 권한 필드의 갯수
+	unsigned short numberofadditionalsection;		// *** 추가적인 정보를 표현을 표현하는 필드의 갯수
+}DNS_HEADER1;
+*/
 #endif
