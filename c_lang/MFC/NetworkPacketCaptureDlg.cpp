@@ -513,7 +513,6 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 						break;
 					}
 					else if (data[i] == 22) {
-
 						if (((data[i + 1] << 8) | data[i + 2]) == 0x301) pDlg->m_Protocol = "TLSv1";
 						else if (((data[i + 1] << 8) | data[i + 2]) == 0x303) pDlg->m_Protocol = "TLSv1.2";
 						else {
