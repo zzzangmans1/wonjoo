@@ -428,14 +428,15 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		Window.Format("Win=%d", SWAP16(pDlg->m_TCPHeader->window));
 		pDlg->m_TCPPacketInfo += " " + Flag +" "+ Window;
 		pDlg->m_TCPHeaderPayload = (TCP_HEADER_PAYLOAD*)(data + 54);
+
 		// *** 데이터 바로 뒤에 TLS 헤더가 있다면
 		if (pDlg->m_TCPHeaderPayload->opaquetype >= 20 && pDlg->m_TCPHeaderPayload->opaquetype <= 26)
 		{
-			pDlg->m_Protocol.Format("TLS");
-			if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x301) pDlg->m_Protocol += "v1";
-			else if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x303) pDlg->m_Protocol += "v1.2";
-			else {
-				pDlg->m_Protocol = "TCP";
+			if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x301) {
+				pDlg->m_Protocol.Format("TLSv1");
+			}
+			else if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x303) {
+				pDlg->m_Protocol.Format("TLSv1.2");
 			}
 			if (pDlg->m_TCPHeaderPayload->opaquetype == 20) {
 				pDlg->m_TCPPacketInfo = "Change Cipher Spec";
@@ -500,7 +501,6 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 							continue;
 						}
 						pDlg->m_TCPPacketInfo = "Change Cipher Spec";
-
 						break;
 					}
 					else if (data[i] == 21) {
@@ -547,15 +547,18 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 						{
 							pDlg->m_TCPPacketInfo = "Ceritficate";
 						}
+						else if (data[i + 5] == 14)
+						{
+							pDlg->m_TCPPacketInfo = "Server Hello Done RESERVED";
+						}
 						else if (data[i + 5] == 16)
 						{
 							pDlg->m_TCPPacketInfo = "Client Key Exchange";
 						}
 						else {
-							//pDlg->m_TCPPacketInfo.Format(" %X", data[59]);
+							pDlg->m_TCPPacketInfo.Format(" %X", data[i+5]);
 							continue;
 						}
-
 						break;
 					}
 					else if (data[i] == 23) {
@@ -565,7 +568,6 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 							continue;
 						}
 						pDlg->m_TCPPacketInfo = "Application Data";
-
 						break;
 					}
 				}
@@ -1167,7 +1169,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 				// *** TLS 헤더 끝나고 바로 TLS가 아니라면
 				else
 				{
-					for (int j = 0; j < atoi(length); j+= 2)
+					for (int j = 0; j/2 < atoi(length); j+= 2)
 					{
 						if (CStringToHex(savedata, 108 + j, 2) >= 20 && CStringToHex(savedata, 108 + j, 2) <= 26)
 						{
@@ -1175,34 +1177,49 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 							TLSTRS5 = "Transport Layer Security";
 							if (CStringToHex(savedata, 108 + j, 2) == 20) {
 
-								TLSTRS5_1.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 108 + j, 2));
 								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else continue;
+								TLSTRS5_1.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 108 + j, 2));
+								TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114 + j, 4));
+								break;
 							}
 							else if (CStringToHex(savedata, 108 + j, 2) == 21) {
 
-								TLSTRS5_1.Format("Content Type: Alert (%d)", CStringToHex(savedata, 108 + j, 2));
 								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else continue;
+								TLSTRS5_1.Format("Content Type: Alert (%d)", CStringToHex(savedata, 108 + j, 2));
+								TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114 + j, 4));
+								break;
+								
 							}
 							else if (CStringToHex(savedata, 108 + j, 2) == 22) {
 
-								TLSTRS5_1.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 108 + j, 2));
 								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else continue;
+								TLSTRS5_1.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 108 + j, 2));
+								TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114 + j, 4));
 							}
 							else if (CStringToHex(savedata, 108 + j, 2) == 23) {
 
-								TLSTRS5_1.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 108 + j, 2));
 								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
 								else continue;
+								TLSTRS5_1.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 108 + j, 2));
+								TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114 + j, 4));
+								break;
 							}
 							// *** 입력한 값중에 없다면
-							else continue;//TLSTRS5_1.Format("Content Type: None Checking (%d)", CStringToHex(savedata, 108 + j, 2));
+							else {
+								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else continue;
+								TLSTRS5_1.Format("Content Type: None Checking (%d)", CStringToHex(savedata, 108 + j, 2));
+								TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114 + j, 4));
+								break;
+							}
 							// *** COntent Type 이 Handshake 라면
 							if (CStringToHex(savedata, 108+j, 2) == 22)
 							{
@@ -1213,6 +1230,8 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 									TLSTRS5_4_1.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 118+j, 2));
 									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
 									TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
+									break;
+									
 								}
 								else if (CStringToHex(savedata, 118+j, 2) == 2)
 								{
@@ -1220,32 +1239,47 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 									TLSTRS5_4_1.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 118+j, 2));
 									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
 									TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
+									break;
+									
+								}
+								else if (CStringToHex(savedata, 118 + j, 2) == 4)
+								{
+									TLSTRS5_4 = "Handshake Protocol: New Session Ticket";
+									TLSTRS5_4_1.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 118 + j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120 + j, 6));
+									break;
+								}
+								else if (CStringToHex(savedata, 118 + j, 2) == 11)
+								{
+									TLSTRS5_4 = "Handshake Protocol: Certificate";
+									TLSTRS5_4_1.Format("Handshake Type: Certificate (%d)", CStringToHex(savedata, 118 + j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120 + j, 6));
+									TLSTRS5_4_3.Format("Certificate Length: %d", CStringToHex(savedata, 126 + j, 6));
+									break;
+								}
+								else if (CStringToHex(savedata, 118 + j, 2) == 12)
+								{
+									TLSTRS5_4 = "Handshake Protocol: Server Key Exchange";
+									TLSTRS5_4_1.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 118 + j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120 + j, 6));
+									break;
+								}
+								else if (CStringToHex(savedata, 118 + j, 2) == 14)
+								{
+									TLSTRS5_4 = "Handshake Protocol: Server Hello Done";
+									TLSTRS5_4_1.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 118 + j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120 + j, 6));
+									break;
+								}
+								else if (CStringToHex(savedata, 118 + j, 2) == 16)
+								{
+									TLSTRS5_4 = "Handshake Protocol: Client Key Exchange";
+									TLSTRS5_4_1.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 118 + j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120 + j, 6));
+									break;
 								}
 							}
 						}
-						
-						TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114+j, 4));
-
-						// *** COntent Type 이 Handshake 라면
-						if (CStringToHex(savedata, 108+j, 2) == 22)
-						{
-							// *** 1 이면 Client Hello 2 이면 Server Hello
-							if (CStringToHex(savedata, 118+j, 2) == 1)
-							{
-								TLSTRS5_4 = "Handshake Protocol: Client Hello";
-								TLSTRS5_4_1.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 118+j, 2));
-								TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
-								TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
-							}
-							else if (CStringToHex(savedata, 118+j, 2) == 2)
-							{
-								TLSTRS5_4 = "Handshake Protocol: Server Hello";
-								TLSTRS5_4_1.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 118+j, 2));
-								TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
-								TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
-							}
-						}
-					
 					}
 				}
 				
@@ -2928,35 +2962,74 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 			}
 			else if ((protocol.Find(_T("TLS")) != -1))
 			{
-				m_PacketDataControlList.InsertItem(listidx, "23", 0);
-				m_PacketDataControlList.SetItemText(listidx, 1, "Content Type");
-				HexTemp.Format("%02X", CStringToHex(data, 108, 2));
-				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-				StrTemp.Format("%c", IsAlpha(CStringToHex(data, 108, 2)));
-				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-
-				m_PacketDataControlList.InsertItem(listidx, "24", 0);
-				m_PacketDataControlList.SetItemText(listidx, 1, "Version");
-				HexTemp.Format("%02X %02X", CStringToHex(data, 110, 2), CStringToHex(data, 112, 2));
-				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 110, 2)), IsAlpha(CStringToHex(data, 112, 2)));
-				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
-				m_PacketDataControlList.InsertItem(listidx, "25", 0);
-				m_PacketDataControlList.SetItemText(listidx, 1, "Length");
-				HexTemp.Format("%02X %02X", CStringToHex(data, 114, 2), CStringToHex(data, 116, 2));
-				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
-				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 114, 2)), IsAlpha(CStringToHex(data, 116, 2)));
-				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
-
 				CString strcnt;
-				m_PacketDataControlList.InsertItem(listidx, "26", 0);
+				CString StrTempcat = "";
+				int t = 0;
+				strcnt.Format("%d", listidx);
+				if (!((CStringToHex(data, 108, 2) >= 20) && (CStringToHex(data, 108, 2) <= 26))
+					&& CStringToHex(data, 110, 2) != 3)
+				{
+					m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+					m_PacketDataControlList.SetItemText(listidx, 1, "Data");
+					HexTemp = "";
+					StrTemp = "";
+					int hexcheck= 0;
+					while (1)
+					{
+						if (
+							((CStringToHex(data, 108 + t, 2) >= 20) &&
+							(CStringToHex(data, 108 + t, 2) <= 26)) &&
+							(CStringToHex(data,110+t, 2) == 3) 
+							)
+						{
+							break;
+						}
+						if (hexcheck++ == 16) {
+							m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+							m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+							strcnt.Format("%d", listidx);
+							m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+							HexTemp = "";
+							StrTemp = "";
+							hexcheck = 1;
+						}
+						HexTemp += data.Mid(108 + t, 2).MakeUpper() + " ";
+						StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 108 + t, 2)));
+						StrTemp += StrTempcat;
+						t += 2;
+					}
+				}
+				strcnt.Format("%d", listidx);
+				m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Content Type");
+				HexTemp.Format("%02X", CStringToHex(data, 108+t, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c", IsAlpha(CStringToHex(data, 108+t, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				strcnt.Format("%d", listidx);
+				m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Version");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 110+t, 2), CStringToHex(data, 112+t, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 110+t, 2)), IsAlpha(CStringToHex(data, 112+t, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				strcnt.Format("%d", listidx);
+				m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Length");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 114+t, 2), CStringToHex(data, 116 + t, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 114 + t, 2)), IsAlpha(CStringToHex(data, 116 + t, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				strcnt.Format("%d", listidx);
+				m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
 				m_PacketDataControlList.SetItemText(listidx, 1, "Data");
 				HexTemp = "";
 				StrTemp = "";
-				CString StrTempcat = "";
-				int t, j = 0, hexcheck = 0;
+				StrTempcat = "";
+				int j = 0, hexcheck = 0;
 				for (t = 0; t < CStringToHex(data, 32, 4) - 40; t++)
 				{
 					if (hexcheck++ == 16) {
@@ -2968,8 +3041,8 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 						StrTemp = "";
 						hexcheck = 1;
 					}
-					HexTemp += data.Mid(118 + j, 2).MakeUpper() + " ";
-					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 118 + j, 2)));
+					HexTemp += data.Mid(118 + j + t, 2).MakeUpper() + " ";
+					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 118 + j+ t, 2)));
 					StrTemp += StrTempcat;
 					j += 2;
 				}
