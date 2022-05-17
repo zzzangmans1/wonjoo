@@ -77,7 +77,7 @@ public:
 	UDP_HEADER* m_UDPHeader;						// *** UDP HEADER
 	ARP_HEADER* m_ARPHeader;						// *** ARP HEADER
 	DNS_HEADER* m_DNSHeader;						// *** DNS HEADER
-
+	TCP_HEADER_PAYLOAD* m_TCPHeaderPayload;			// *** TCP HEADER PAYLOAD
 	/*
 	struct pcap_pkthdr {
 		struct timeval ts;       time stamp			캡쳐된 시간정보가 저장된 멤버 ts
