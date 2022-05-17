@@ -326,11 +326,11 @@ void CNetworkPacketCaptureDlg::OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pRe
 	*pResult = 0;
 }
 
-// 쓰레드 동작 함수
+// *** 쓰레드 동작 함수
 void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data)
 {
 	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)AfxGetApp()->m_pMainWnd;
-
+	
 	if (pDlg->m_eThreadWork == CNetworkPacketCaptureDlg::ThreadWorkingType::THREAD_STOP)
 	{
 		pcap_breakloop(pDlg->m_NetworkDeviceHandler);
@@ -403,6 +403,8 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	{
 		int flag_check = 0, spcCnt = 0;
 		CString Flag = "";
+		CString Window = "";
+
 		pDlg->m_Protocol = "TCP";
 		pDlg->m_TCPHeader = (TCP_HEADER*) ((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
 
@@ -421,8 +423,154 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 			Flag.Insert(9, "]");
 		}
 		else Flag.Insert(4, "]");
+		
 		pDlg->m_TCPPacketInfo.Format("%d -> %d", ntohs(pDlg->m_TCPHeader->src_port), ntohs(pDlg->m_TCPHeader->dst_port));
-		pDlg->m_TCPPacketInfo += " " + Flag;
+		Window.Format("Win=%d", SWAP16(pDlg->m_TCPHeader->window));
+		pDlg->m_TCPPacketInfo += " " + Flag +" "+ Window;
+		pDlg->m_TCPHeaderPayload = (TCP_HEADER_PAYLOAD*)(data + 54);
+		// *** 데이터 바로 뒤에 TLS 헤더가 있다면
+		if (pDlg->m_TCPHeaderPayload->opaquetype >= 20 && pDlg->m_TCPHeaderPayload->opaquetype <= 26)
+		{
+			pDlg->m_Protocol.Format("TLS");
+			if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x301) pDlg->m_Protocol += "v1";
+			else if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x303) pDlg->m_Protocol += "v1.2";
+			else {
+				pDlg->m_Protocol = "TCP";
+			}
+			if (pDlg->m_TCPHeaderPayload->opaquetype == 20) {
+				pDlg->m_TCPPacketInfo = "Change Cipher Spec";
+			}
+			else if (pDlg->m_TCPHeaderPayload->opaquetype == 21) {
+				pDlg->m_TCPPacketInfo = "Encrypted Alert";
+			}
+			else if (pDlg->m_TCPHeaderPayload->opaquetype == 22) {
+				if (data[59] == 1)
+				{
+					pDlg->m_TCPPacketInfo = "Client Hello";
+				}
+				else if (data[59] == 2)
+				{
+					pDlg->m_TCPPacketInfo = "Server Hello";
+				}
+				else if (data[59] == 3)
+				{
+					pDlg->m_TCPPacketInfo = "hello verify request RESERVED";
+				}
+				else if (data[59] == 4)
+				{
+					pDlg->m_TCPPacketInfo = "new session ticket";
+				}
+				else if (data[59] == 5)
+				{
+					pDlg->m_TCPPacketInfo = "end of early data";
+				}
+				else if (data[59] == 6)
+				{
+					pDlg->m_TCPPacketInfo = "hello retry request RESERVED";
+
+				}
+				else if (data[59] == 11)
+				{
+					pDlg->m_TCPPacketInfo = "ceritficate";
+				}
+				else if (data[59] == 16)
+				{
+					pDlg->m_TCPPacketInfo = "Client Key Exchange";
+				}
+				else {
+					pDlg->m_TCPPacketInfo.Format(" %X", data[59]);
+				}
+			}
+			else if (pDlg->m_TCPHeaderPayload->opaquetype == 23) {
+				pDlg->m_TCPPacketInfo = "Application Data";
+			}
+		}
+		// *** 데이터 바로 뒤에 TLS 헤더가 없다면, 있는지 체그
+		else
+		{
+			for (int i = 54; i < header->caplen;i++)
+			{
+				if (data[i] >= 20 && data[i] <= 26)
+				{
+					
+					if (data[i] == 20) {
+						if (((data[i + 1] << 8) | data[i + 2]) == 0x301) pDlg->m_Protocol = "TLSv1";
+						else if (((data[i + 1] << 8) | data[i + 2]) == 0x303) pDlg->m_Protocol = "TLSv1.2";
+						else {
+							continue;
+						}
+						pDlg->m_TCPPacketInfo = "Change Cipher Spec";
+
+						break;
+					}
+					else if (data[i] == 21) {
+						if (((data[i + 1] << 8) | data[i + 2]) == 0x301) pDlg->m_Protocol = "TLSv1";
+						else if (((data[i + 1] << 8) | data[i + 2]) == 0x303) pDlg->m_Protocol = "TLSv1.2";
+						else {
+							continue;
+						}
+						pDlg->m_TCPPacketInfo = "Encrypted Alert";
+						break;
+					}
+					else if (data[i] == 22) {
+
+						if (((data[i + 1] << 8) | data[i + 2]) == 0x301) pDlg->m_Protocol = "TLSv1";
+						else if (((data[i + 1] << 8) | data[i + 2]) == 0x303) pDlg->m_Protocol = "TLSv1.2";
+						else {
+							continue;
+						}
+						if (data[i+5] == 1)
+						{
+							pDlg->m_TCPPacketInfo = "Client Hello";
+						}
+						else if (data[i + 5] == 2)
+						{
+							pDlg->m_TCPPacketInfo = "Server Hello";
+						}
+						else if (data[i + 5] == 3)
+						{
+							pDlg->m_TCPPacketInfo = "hello verify request RESERVED";
+						}
+						else if (data[i + 5] == 4)
+						{
+							pDlg->m_TCPPacketInfo = "new session ticket";
+						}
+						else if (data[i + 5] == 5)
+						{
+							pDlg->m_TCPPacketInfo = "end of early data";
+						}
+						else if (data[i + 5] == 6)
+						{
+							pDlg->m_TCPPacketInfo = "hello retry request RESERVED";
+						}
+						else if (data[i + 5] == 11)
+						{
+							pDlg->m_TCPPacketInfo = "Ceritficate";
+						}
+						else if (data[i + 5] == 16)
+						{
+							pDlg->m_TCPPacketInfo = "Client Key Exchange";
+						}
+						else {
+							//pDlg->m_TCPPacketInfo.Format(" %X", data[59]);
+							continue;
+						}
+
+						break;
+					}
+					else if (data[i] == 23) {
+						if (((data[i + 1] << 8) | data[i + 2]) == 0x301) pDlg->m_Protocol = "TLSv1";
+						else if (((data[i + 1] << 8) | data[i + 2]) == 0x303) pDlg->m_Protocol = "TLSv1.2";
+						else {
+							continue;
+						}
+						pDlg->m_TCPPacketInfo = "Application Data";
+
+						break;
+					}
+				}
+			}
+		}
 		size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
 		CString ListControlCntStr;
 		ListControlCntStr.Format("%d", ListControlCnt + 1);
@@ -490,8 +638,9 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	{
 		pDlg->m_PCThread->SuspendThread();
 	}
-	// 리스트 컨트롤 꽉찰경우 EnsureVisible() 를 사용하여 자동으로 
+	// *** 리스트 컨트롤 꽉찰경우 EnsureVisible() 를 사용하여 자동으로 밑으로 내려준다.
 	pDlg->m_NetworkInterfaceControlList.EnsureVisible(pDlg->m_NetworkInterfaceControlList.GetItemCount() - 1, FALSE);
+	memset((void*)data, 0, header->caplen * sizeof(u_char) );
 }
 
 // *** 네트워크 인터페이스 세팅 쓰레드 
@@ -586,6 +735,7 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	BOOL bSSDPFlag = FALSE;
 	BOOL bARPFlag = FALSE;
 	BOOL bDNSFlag = FALSE;
+	BOOL bTLSFlag = FALSE;
 
 	NMLVCUSTOMDRAW* pLVCD = (NMLVCUSTOMDRAW*)pNMHDR;
 
@@ -614,6 +764,11 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 	if ((strType.Find(_T("DNS")) != -1))
 	{
 		bDNSFlag = TRUE;
+	}
+
+	if ((strType.Find(_T("TLS")) != -1))
+	{
+		bTLSFlag = TRUE;
 	}
 	*pResult = 0;
 
@@ -645,6 +800,10 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		else if (bDNSFlag)
 		{
 			pLVCD->clrTextBk = RGB(255, 98, 98);
+		}
+		else if (bTLSFlag)
+		{
+			pLVCD->clrTextBk = RGB(206, 148, 255);
 		}
 		else
 		{
@@ -850,6 +1009,8 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		DNSTR5_7_1,
 		DNSTR5_8_1, DNSTR5_8_2, DNSTR5_8_3, DNSTR5_8_4, DNSTR5_8_5, DNSTR5_8_6, DNSTR5_8_7, DNSTR5_8_8, DNSTR5_8_9, DNSTR5_8_10,
 		DNSTR5_8_11, DNSTR5_8_12, DNSTR5_8_13, DNSTR5_8_14, DNSTR5_8_15;
+	HTREEITEM TLSTR5 = NULL,TLSTR5_TMP=NULL, TLSTR5_1 = NULL, TLSTR5_2 = NULL, TLSTR5_3 = NULL, TLSTR5_4 = NULL,
+		TLSTR5_4_1, TLSTR5_4_2, TLSTR5_4_3;
 
 	// *** 트리 초기화
 	m_PacketInfoTree.DeleteAllItems();
@@ -872,6 +1033,8 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		DNSTRS5_7_1,
 		DNSTRS5_8_1, DNSTRS5_8_2, DNSTRS5_8_3, DNSTRS5_8_4, DNSTRS5_8_5, DNSTRS5_8_6, DNSTRS5_8_7, DNSTRS5_8_8, DNSTRS5_8_9, DNSTRS5_8_10,
 		DNSTRS5_8_11, DNSTRS5_8_12, DNSTRS5_8_13, DNSTRS5_8_14, DNSTRS5_8_15;
+	CString TLSTRS5,TLSTRS5_TMP, TLSTRS5_1, TLSTRS5_2, TLSTRS5_3, TLSTRS5_4,
+		TLSTRS5_4_1, TLSTRS5_4_2, TLSTRS5_4_3;
 
 	// *** 첫 번째 트리
 	TRS1 = "Frame " + framecnt + ": " + length + " bytes on wire, " + length + " bytes captured on interface \\Device\\NPF_" + m_MyDev->name + ", id 0";
@@ -932,7 +1095,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		// *** 세 번째 트리 
 		int dnsanswcnt = 0;
 		// *** TCP 라면
-		if (!protocol.Compare("TCP"))
+		if (!protocol.Compare("TCP") || (protocol.Find(_T("TLS")) != -1))
 		{
 			TCPTRS4.Format("Transmission Control Protocol, Src Port: %d, Dst Port: %d", CStringToHex(savedata, 68, 4), CStringToHex(savedata, 72, 4));
 			TCPTRS4_1.Format("Source Port: %d", CStringToHex(savedata, 68, 4));
@@ -957,6 +1120,136 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			TCPTRS4_7.Format("Window: %d", CStringToHex(savedata, 96, 4));
 			TCPTRS4_8.Format("Checksum: 0x%X", CStringToHex(savedata, 100, 4));
 			TCPTRS4_9.Format("Urgent Pointer: %d", CStringToHex(savedata, 104, 4));
+			if ((protocol.Find(_T("TLS")) != -1))
+			{
+				// *** TCP 헤더 끝나고 바로 TLS 있다면
+				if (CStringToHex(savedata, 108, 2) >= 20 && CStringToHex(savedata,108,2) <= 26)
+				{
+					TLSTRS5 = "Transport Layer Security";
+					if (CStringToHex(savedata, 108, 2) == 20) {
+						TLSTRS5_1.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 108, 2));
+					}
+
+					else if (CStringToHex(savedata, 108, 2) == 21) {
+						TLSTRS5_1.Format("Content Type: Alert (%d)", CStringToHex(savedata, 108, 2));
+					}
+
+					else if (CStringToHex(savedata, 108, 2) == 22) {
+						TLSTRS5_1.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 108, 2));
+					}
+					else if (CStringToHex(savedata, 108, 2) == 23) {
+						TLSTRS5_1.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 108, 2));
+					}
+					if (CStringToHex(savedata, 110, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110, 4));
+					else if (CStringToHex(savedata, 110, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110, 4));
+					TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114, 4));
+
+					// *** COntent Type 이 Handshake 라면
+					if (CStringToHex(savedata, 108, 2) == 22)
+					{
+						// *** 1 이면 Client Hello 2 이면 Server Hello
+						if (CStringToHex(savedata, 118, 2) == 1)
+						{
+							TLSTRS5_4 = "Handshake Protocol: Client Hello";
+							TLSTRS5_4_1.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 118, 2));
+							TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120, 6));
+							TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126, 4));
+						}
+						else if (CStringToHex(savedata, 118, 2) == 2)
+						{
+							TLSTRS5_4 = "Handshake Protocol: Server Hello";
+							TLSTRS5_4_1.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 118, 2));
+							TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120, 6));
+							TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126, 4));
+						}
+					}
+				}
+				// *** TLS 헤더 끝나고 바로 TLS가 아니라면
+				else
+				{
+					for (int j = 0; j < atoi(length); j+= 2)
+					{
+						if (CStringToHex(savedata, 108 + j, 2) >= 20 && CStringToHex(savedata, 108 + j, 2) <= 26)
+						{
+							TLSTRS5_TMP.Format("TCP DATA(%d bytes)", j/2);
+							TLSTRS5 = "Transport Layer Security";
+							if (CStringToHex(savedata, 108 + j, 2) == 20) {
+
+								TLSTRS5_1.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 108 + j, 2));
+								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else continue;
+							}
+							else if (CStringToHex(savedata, 108 + j, 2) == 21) {
+
+								TLSTRS5_1.Format("Content Type: Alert (%d)", CStringToHex(savedata, 108 + j, 2));
+								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else continue;
+							}
+							else if (CStringToHex(savedata, 108 + j, 2) == 22) {
+
+								TLSTRS5_1.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 108 + j, 2));
+								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else continue;
+							}
+							else if (CStringToHex(savedata, 108 + j, 2) == 23) {
+
+								TLSTRS5_1.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 108 + j, 2));
+								if (CStringToHex(savedata, 110 + j, 4) == 0x303) TLSTRS5_2.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else if (CStringToHex(savedata, 110 + j, 4) == 0x301) TLSTRS5_2.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 110 + j, 4));
+								else continue;
+							}
+							// *** 입력한 값중에 없다면
+							else continue;//TLSTRS5_1.Format("Content Type: None Checking (%d)", CStringToHex(savedata, 108 + j, 2));
+							// *** COntent Type 이 Handshake 라면
+							if (CStringToHex(savedata, 108+j, 2) == 22)
+							{
+								// *** 1 이면 Client Hello 2 이면 Server Hello
+								if (CStringToHex(savedata, 118+j, 2) == 1)
+								{
+									TLSTRS5_4 = "Handshake Protocol: Client Hello";
+									TLSTRS5_4_1.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 118+j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
+									TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
+								}
+								else if (CStringToHex(savedata, 118+j, 2) == 2)
+								{
+									TLSTRS5_4 = "Handshake Protocol: Server Hello";
+									TLSTRS5_4_1.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 118+j, 2));
+									TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
+									TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
+								}
+							}
+						}
+						
+						TLSTRS5_3.Format("Length: %d", CStringToHex(savedata, 114+j, 4));
+
+						// *** COntent Type 이 Handshake 라면
+						if (CStringToHex(savedata, 108+j, 2) == 22)
+						{
+							// *** 1 이면 Client Hello 2 이면 Server Hello
+							if (CStringToHex(savedata, 118+j, 2) == 1)
+							{
+								TLSTRS5_4 = "Handshake Protocol: Client Hello";
+								TLSTRS5_4_1.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 118+j, 2));
+								TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
+								TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
+							}
+							else if (CStringToHex(savedata, 118+j, 2) == 2)
+							{
+								TLSTRS5_4 = "Handshake Protocol: Server Hello";
+								TLSTRS5_4_1.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 118+j, 2));
+								TLSTRS5_4_2.Format("Length: %d", CStringToHex(savedata, 120+j, 6));
+								TLSTRS5_4_3.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 126+j, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 126+j, 4));
+							}
+						}
+					
+					}
+				}
+				
+			}
 			// *** IP Header에 Total Length가 40이상이면 TCP Payload 존재
 			if (CStringToHex(savedata, 32, 4) > 40)
 			{
@@ -2079,7 +2372,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		TR3_11 = m_PacketInfoTree.InsertItem(TRS3_11, 0, 0, TR3, TVI_LAST);
 		TR3_12 = m_PacketInfoTree.InsertItem(TRS3_12, 0, 0, TR3, TVI_LAST);
 
-		if (!protocol.Compare("TCP"))
+		if (!protocol.Compare("TCP") || (protocol.Find(_T("TLS")) != -1))
 		{
 			TCPTR4 = m_PacketInfoTree.InsertItem(TCPTRS4, 0, 0, TVI_ROOT, TVI_LAST);
 			TCPTR4_1 = m_PacketInfoTree.InsertItem(TCPTRS4_1, 0, 0, TCPTR4, TVI_LAST);
@@ -2101,6 +2394,28 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			TCPTR4_7 = m_PacketInfoTree.InsertItem(TCPTRS4_7, 0, 0, TCPTR4, TVI_LAST);
 			TCPTR4_8 = m_PacketInfoTree.InsertItem(TCPTRS4_8, 0, 0, TCPTR4, TVI_LAST);
 			TCPTR4_9 = m_PacketInfoTree.InsertItem(TCPTRS4_9, 0, 0, TCPTR4, TVI_LAST);
+			if ((protocol.Find(_T("TLS")) != -1))
+			{
+
+				TLSTR5 = m_PacketInfoTree.InsertItem(TLSTRS5, 0, 0, TVI_ROOT, TVI_LAST);
+				if (!(CStringToHex(savedata, 108, 2) >= 20 && CStringToHex(savedata, 108, 2) <= 26))
+				{
+					TLSTR5_TMP = m_PacketInfoTree.InsertItem(TLSTRS5_TMP, 0, 0, TLSTR5, TVI_LAST);
+				}
+				TLSTR5_1 = m_PacketInfoTree.InsertItem(TLSTRS5_1, 0, 0, TLSTR5, TVI_LAST);
+				TLSTR5_2 = m_PacketInfoTree.InsertItem(TLSTRS5_2, 0, 0, TLSTR5, TVI_LAST);
+				TLSTR5_3 = m_PacketInfoTree.InsertItem(TLSTRS5_3, 0, 0, TLSTR5, TVI_LAST);
+
+				// *** COntent Type 이 Handshake 라면
+				if (CStringToHex(savedata, 108, 2) == 22)
+				{
+					TLSTR5_4 = m_PacketInfoTree.InsertItem(TLSTRS5_4, 0, 0, TLSTR5, TVI_LAST);
+					TLSTR5_4_1 = m_PacketInfoTree.InsertItem(TLSTRS5_4_1, 0, 0, TLSTR5_4, TVI_LAST);
+					TLSTR5_4_2 = m_PacketInfoTree.InsertItem(TLSTRS5_4_2, 0, 0, TLSTR5_4, TVI_LAST);
+					TLSTR5_4_3 = m_PacketInfoTree.InsertItem(TLSTRS5_4_3, 0, 0, TLSTR5_4, TVI_LAST);
+
+				}
+			}
 			// *** IP Header에 Total Length가 40이상이면 TCP Payload 존재
 			if (CStringToHex(savedata, 32, 4) > 40)
 			{
@@ -2289,10 +2604,14 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 	//m_PacketInfoTree.Expand(TR1, TVE_EXPAND);
 	//m_PacketInfoTree.Expand(TR2, TVE_EXPAND);
 	//m_PacketInfoTree.Expand(TR3, TVE_EXPAND);
-
+	m_PacketInfoTree.Expand(TLSTR5, TVE_EXPAND);
 	//m_PacketInfoTree.Expand(UDPTR4, TVE_EXPAND);
+	
+	// *** 메모리 초기화
+	savedata.Empty();
 	return 0;
 }
+
 // *** Control List Sort 처리 함수
 int CNetworkPacketCaptureDlg::CompareItem(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
 {
@@ -2513,7 +2832,7 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 		StrTemp.Format("%c %c %c %c", IsAlpha(CStringToHex(data, 60, 2)), IsAlpha(CStringToHex(data, 62, 2)), IsAlpha(CStringToHex(data, 64, 2)), IsAlpha(CStringToHex(data, 66, 2)));
 		m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
 
-		if (protocol == "TCP")
+		if (protocol == "TCP" || (protocol.Find(_T("TLS")) != -1))
 		{
 			m_PacketDataControlList.InsertItem(listidx, "14", 0);
 			m_PacketDataControlList.SetItemText(listidx, 1, "Source Port");
@@ -2577,8 +2896,9 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 			m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
 			StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 104, 2)), IsAlpha(CStringToHex(data, 106, 2)));
 			m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+			
 			// *** IP Header에 Total Length가 40 이상이면 데이터가 더 존재
-			if (CStringToHex(data, 32, 4)-40 > 1)
+			if (protocol == "TCP")
 			{
 				CString strcnt;
 				m_PacketDataControlList.InsertItem(listidx, "23", 0);
@@ -2600,6 +2920,56 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 					}
 					HexTemp += data.Mid(108 + j, 2).MakeUpper() + " ";
 					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 108 + j, 2)));
+					StrTemp += StrTempcat;
+					j += 2;
+				}
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				m_PacketDataControlList.SetItemText(listidx, 3, StrTemp);
+			}
+			else if ((protocol.Find(_T("TLS")) != -1))
+			{
+				m_PacketDataControlList.InsertItem(listidx, "23", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Content Type");
+				HexTemp.Format("%02X", CStringToHex(data, 108, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c", IsAlpha(CStringToHex(data, 108, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+
+				m_PacketDataControlList.InsertItem(listidx, "24", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Version");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 110, 2), CStringToHex(data, 112, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 110, 2)), IsAlpha(CStringToHex(data, 112, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				m_PacketDataControlList.InsertItem(listidx, "25", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Length");
+				HexTemp.Format("%02X %02X", CStringToHex(data, 114, 2), CStringToHex(data, 116, 2));
+				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+				StrTemp.Format("%c %c", IsAlpha(CStringToHex(data, 114, 2)), IsAlpha(CStringToHex(data, 116, 2)));
+				m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+
+				CString strcnt;
+				m_PacketDataControlList.InsertItem(listidx, "26", 0);
+				m_PacketDataControlList.SetItemText(listidx, 1, "Data");
+				HexTemp = "";
+				StrTemp = "";
+				CString StrTempcat = "";
+				int t, j = 0, hexcheck = 0;
+				for (t = 0; t < CStringToHex(data, 32, 4) - 40; t++)
+				{
+					if (hexcheck++ == 16) {
+						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
+						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
+						strcnt.Format("%d", listidx);
+						m_PacketDataControlList.InsertItem(listidx, strcnt, 0);
+						HexTemp = "";
+						StrTemp = "";
+						hexcheck = 1;
+					}
+					HexTemp += data.Mid(118 + j, 2).MakeUpper() + " ";
+					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 118 + j, 2)));
 					StrTemp += StrTempcat;
 					j += 2;
 				}
