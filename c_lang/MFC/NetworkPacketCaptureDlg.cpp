@@ -1047,6 +1047,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 		TLSTRS5_5, TLSTRS5_6, TLSTRS5_7, TLSTRS5_8,
 		TLSTRS5_9, TLSTRS5_10, TLSTRS5_11, TLSTRS5_12,
 		TLSTRS5_13, TLSTRS5_14, TLSTRS5_15, TLSTRS5_16,
+
 		TLSTRS5_4_1, TLSTRS5_4_2, TLSTRS5_4_3,
 		TLSTRS5_5_1 = NULL, TLSTRS5_5_2 = NULL, TLSTRS5_5_3 = NULL, TLSTRS5_5_4 = NULL,
 		TLSTRS5_6_1 = NULL, TLSTRS5_6_2 = NULL, TLSTRS5_6_3 = NULL, TLSTRS5_6_4 = NULL,
@@ -1208,239 +1209,222 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 					tlscnt = 0;
 					while (i <= savedata.GetLength())
 					{
-						if (((CStringToHex(savedata, 130 + k, 2) >= 20) && (CStringToHex(savedata, 130 + k, 2) <= 26)) 
-							&& (CStringToHex(savedata, 132 + k, 2) == 3))
+						if ((((CStringToHex(savedata, 118 + k, 2) >= 20) && (CStringToHex(savedata, 118 + k, 2) <= 26))
+							&& (CStringToHex(savedata, 120 + k, 2) == 3)) && ((CStringToHex(savedata, 122+k, 2) == 1) || (CStringToHex(savedata, 122+k, 2) == 3)))
 						{
 							if (tlscnt == 0)
 							{
-								if (CStringToHex(savedata, 130+k, 2) == 20) {
-									TLSTRS5_5.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 130+k, 2));
+								if (CStringToHex(savedata, 118 +k, 2) == 20) {
+									TLSTRS5_5.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 118 +k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130+k, 2) == 21) {
-									TLSTRS5_5.Format("Content Type: Alert (%d)", CStringToHex(savedata, 130+k, 2));
+								else if (CStringToHex(savedata, 118 +k, 2) == 21) {
+									TLSTRS5_5.Format("Content Type: Alert (%d)", CStringToHex(savedata, 118 +k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130+k, 2) == 22) {
-									TLSTRS5_5.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 130+k, 2));
+								else if (CStringToHex(savedata, 118 +k, 2) == 22) {
+									TLSTRS5_5.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 118 +k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130+k, 2) == 23) {
-									TLSTRS5_5.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 130+k, 2));
+								else if (CStringToHex(savedata, 118 +k, 2) == 23) {
+									TLSTRS5_5.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 118 +k, 2));
 								}
 
-								if (CStringToHex(savedata, 132+k, 4) == 0x303) TLSTRS5_6.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 132+k, 4));
-								else if (CStringToHex(savedata, 132+k, 4) == 0x301) TLSTRS5_6.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 132+k, 4));
-								TLSTRS5_7.Format("Length: %d", CStringToHex(savedata, 136+k, 4));
+								if (CStringToHex(savedata, 120+k, 4) == 0x303) TLSTRS5_6.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 120 +k, 4));
+								else if (CStringToHex(savedata, 120 +k, 4) == 0x301) TLSTRS5_6.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 120+k, 4));
+								TLSTRS5_7.Format("Length: %d", CStringToHex(savedata, 124 +k, 4));
 
 								// *** COntent Type 이 Handshake 라면
-								if (CStringToHex(savedata, 130+k, 2) == 22)
+								if (CStringToHex(savedata, 118 +k, 2) == 22)
 								{
 									// *** 1 이면 Client Hello 2 이면 Server Hello
-									if (CStringToHex(savedata, 140+k, 2) == 1)
+									if (CStringToHex(savedata, 128+k, 2) == 1)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Client Hello";
-										TLSTRS5_5_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 140+k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142+k, 6));
-										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148+k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148+k, 4));
+										TLSTRS5_5_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 128 +k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130+k, 6));
+										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136+k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 +k, 4));
 									}
-									else if (CStringToHex(savedata, 140+k, 2) == 2)
+									else if (CStringToHex(savedata, 128 +k, 2) == 2)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Server Hello";
-										TLSTRS5_5_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_5_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 4)
+									else if (CStringToHex(savedata, 128 + k, 2) == 4)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: New Session Ticket";
-										TLSTRS5_5_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 12)
+									else if (CStringToHex(savedata, 128 + k, 2) == 12)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Server Key Exchange";
-										TLSTRS5_5_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 14)
+									else if (CStringToHex(savedata, 128 + k, 2) == 14)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Server Hello Done";
-										TLSTRS5_5_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 16)
+									else if (CStringToHex(savedata, 128 + k, 2) == 16)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Client Key Exchange";
-										TLSTRS5_5_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									k += 18;
-									i += 18;
-									continue;
 								}
 								else {
-									k += 10;
-									i += 10;
-									continue;
 								}
 								tlscnt++;
 							}
 							else if (tlscnt == 1)
 							{
-								if (CStringToHex(savedata, 130 + k, 2) == 20) {
-									TLSTRS5_8.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 130 + k, 2));
+								if (CStringToHex(savedata, 118 + k, 2) == 20) {
+									TLSTRS5_8.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 21) {
-									TLSTRS5_8.Format("Content Type: Alert (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 21) {
+									TLSTRS5_8.Format("Content Type: Alert (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 22) {
-									TLSTRS5_8.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 22) {
+									TLSTRS5_8.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								else if (CStringToHex(savedata, 130 + k, 2) == 23) {
-									TLSTRS5_8.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 23) {
+									TLSTRS5_8.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								if (CStringToHex(savedata, 132 + k, 4) == 0x303) TLSTRS5_9.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								else if (CStringToHex(savedata, 132 + k, 4) == 0x301) TLSTRS5_9.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								TLSTRS5_10.Format("Length: %d", CStringToHex(savedata, 136 + k, 4));
+								if (CStringToHex(savedata, 120 + k, 4) == 0x303) TLSTRS5_9.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								else if (CStringToHex(savedata, 120 + k, 4) == 0x301) TLSTRS5_9.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								TLSTRS5_10.Format("Length: %d", CStringToHex(savedata, 124 + k, 4));
 
 								// *** COntent Type 이 Handshake 라면
-								if (CStringToHex(savedata, 130 + k, 2) == 22)
+								if (CStringToHex(savedata, 118 + k, 2) == 22)
 								{
 									// *** 1 이면 Client Hello 2 이면 Server Hello
-									if (CStringToHex(savedata, 140 + k, 2) == 1)
+									if (CStringToHex(savedata, 128 + k, 2) == 1)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Client Hello";
-										TLSTRS5_6_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_6_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 2)
+									else if (CStringToHex(savedata, 128 + k, 2) == 2)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Server Hello";
-										TLSTRS5_6_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_6_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 4)
+									else if (CStringToHex(savedata, 128 + k, 2) == 4)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: New Session Ticket";
-										TLSTRS5_6_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 12)
+									else if (CStringToHex(savedata, 128 + k, 2) == 12)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Server Key Exchange";
-										TLSTRS5_6_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 14)
+									else if (CStringToHex(savedata, 128 + k, 2) == 14)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Server Hello Done";
-										TLSTRS5_6_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 16)
+									else if (CStringToHex(savedata, 128 + k, 2) == 16)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Client Key Exchange";
-										TLSTRS5_6_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									k += 18;
-									i += 18;
-									continue;
 								}
 								else {
-									k += 10;
-									i += 10;
-									continue;
 								}
 								tlscnt++;
 							}
 							else if (tlscnt == 2)
 							{
-								if (CStringToHex(savedata, 130 + k, 2) == 20) {
-									TLSTRS5_11.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 130 + k, 2));
+								if (CStringToHex(savedata, 118 + k, 2) == 20) {
+									TLSTRS5_11.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 21) {
-									TLSTRS5_11.Format("Content Type: Alert (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 21) {
+									TLSTRS5_11.Format("Content Type: Alert (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 22) {
-									TLSTRS5_11.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 22) {
+									TLSTRS5_11.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								else if (CStringToHex(savedata, 130 + k, 2) == 23) {
-									TLSTRS5_11.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 23) {
+									TLSTRS5_11.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								if (CStringToHex(savedata, 132 + k, 4) == 0x303) TLSTRS5_12.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								else if (CStringToHex(savedata, 132 + k, 4) == 0x301) TLSTRS5_12.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								TLSTRS5_13.Format("Length: %d", CStringToHex(savedata, 136 + k, 4));
+								if (CStringToHex(savedata, 120 + k, 4) == 0x303) TLSTRS5_12.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								else if (CStringToHex(savedata, 120 + k, 4) == 0x301) TLSTRS5_12.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								TLSTRS5_13.Format("Length: %d", CStringToHex(savedata, 124 + k, 4));
 
 								// *** COntent Type 이 Handshake 라면
-								if (CStringToHex(savedata, 130 + k, 2) == 22)
+								if (CStringToHex(savedata, 118 + k, 2) == 22)
 								{
 									// *** 1 이면 Client Hello 2 이면 Server Hello
-									if (CStringToHex(savedata, 140 + k, 2) == 1)
+									if (CStringToHex(savedata, 128 + k, 2) == 1)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Client Hello";
-										TLSTRS5_7_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_7_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 2)
+									else if (CStringToHex(savedata, 128 + k, 2) == 2)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Server Hello";
-										TLSTRS5_7_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_7_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 4)
+									else if (CStringToHex(savedata, 128 + k, 2) == 4)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: New Session Ticket";
-										TLSTRS5_7_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 12)
+									else if (CStringToHex(savedata, 128 + k, 2) == 12)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Server Key Exchange";
-										TLSTRS5_7_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 14)
+									else if (CStringToHex(savedata, 128 + k, 2) == 14)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Server Hello Done";
-										TLSTRS5_7_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 16)
+									else if (CStringToHex(savedata, 128 + k, 2) == 16)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Client Key Exchange";
-										TLSTRS5_7_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									k += 18;
-									i += 18;
-									continue;
 								}
 								else {
-									k += 10;
-									i += 10;
-									continue;
 								}
+								tlscnt++;
 							}
 						}
 						k += 2;
-						i += 2;
+						i ++;
 					}
 				}
-				// *** TLS 헤더 끝나고 바로 TLS가 아니라면
+				// *** TCP 헤더 끝나고 바로 TLS가 아니라면
 				else
 				{
 				int j;
-					for (j = 0; j/2 < atoi(length); j+= 2)
+					for (j = 0; j < savedata.GetLength(); j+= 2)
 					{
 						if (CStringToHex(savedata, 108 + j, 2) >= 20 && CStringToHex(savedata, 108 + j, 2) <= 26)
 						{
@@ -1552,234 +1536,217 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 							}
 						}
 					}
-					int i = 118+j, k = j;
+					int i = 118, k = j;
 					tlscnt = 0;
-					while (i++ < savedata.GetLength())
+					while (i < savedata.GetLength())
 					{
-						if (((CStringToHex(savedata, 130 + k, 2) >= 20) && (CStringToHex(savedata, 130 + k, 2) <= 26))
-							&& (CStringToHex(savedata, 132 + k, 2) == 3))
+						if (((CStringToHex(savedata, 118 + k, 2) >= 20) && (CStringToHex(savedata, 118 + k, 2) <= 26))
+							&& (CStringToHex(savedata, 120 + k, 2) == 3) && ((CStringToHex(savedata, 122 + k, 2) == 1) || (CStringToHex(savedata, 122 + k, 2) == 3)))
 						{
 							if (tlscnt == 0)
 							{
-								if (CStringToHex(savedata, 130 + k, 2) == 20) {
-									TLSTRS5_5.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 130 + k, 2));
+								if (CStringToHex(savedata, 118 + k, 2) == 20) {
+									TLSTRS5_5.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 21) {
-									TLSTRS5_5.Format("Content Type: Alert (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 21) {
+									TLSTRS5_5.Format("Content Type: Alert (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 22) {
-									TLSTRS5_5.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 22) {
+									TLSTRS5_5.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								else if (CStringToHex(savedata, 130 + k, 2) == 23) {
-									TLSTRS5_5.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 23) {
+									TLSTRS5_5.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								if (CStringToHex(savedata, 132 + k, 4) == 0x303) TLSTRS5_6.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								else if (CStringToHex(savedata, 132 + k, 4) == 0x301) TLSTRS5_6.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								TLSTRS5_7.Format("Length: %d", CStringToHex(savedata, 136 + k, 4));
+								if (CStringToHex(savedata, 120 + k, 4) == 0x303) TLSTRS5_6.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								else if (CStringToHex(savedata, 120+ k, 4) == 0x301) TLSTRS5_6.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								TLSTRS5_7.Format("Length: %d", CStringToHex(savedata, 124 + k, 4));
 
 								// *** COntent Type 이 Handshake 라면
-								if (CStringToHex(savedata, 130 + k, 2) == 22)
+								if (CStringToHex(savedata, 118 + k, 2) == 22)
 								{
 									// *** 1 이면 Client Hello 2 이면 Server Hello
-									if (CStringToHex(savedata, 140 + k, 2) == 1)
+									if (CStringToHex(savedata, 128 + k, 2) == 1)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Client Hello";
-										TLSTRS5_5_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_5_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 2)
+									else if (CStringToHex(savedata, 128 + k, 2) == 2)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Server Hello";
-										TLSTRS5_5_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_5_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_5_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 4)
+									else if (CStringToHex(savedata, 128 + k, 2) == 4)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: New Session Ticket";
-										TLSTRS5_5_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 12)
+									else if (CStringToHex(savedata, 128 + k, 2) == 12)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Server Key Exchange";
-										TLSTRS5_5_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 14)
+									else if (CStringToHex(savedata, 128 + k, 2) == 14)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Server Hello Done";
-										TLSTRS5_5_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 16)
+									else if (CStringToHex(savedata, 128 + k, 2) == 16)
 									{
 										TLSTRS5_5_1 = "Handshake Protocol: Client Key Exchange";
-										TLSTRS5_5_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_5_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_5_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									k += 18;
-									i += 18;
-									continue;
 								}
 								else {
-									k += 10;
-									i += 10;
-									continue;
 								}
 								tlscnt++;
 							}
 							else if (tlscnt == 1)
 							{
-								if (CStringToHex(savedata, 130 + k, 2) == 20) {
-									TLSTRS5_8.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 130 + k, 2));
+								if (CStringToHex(savedata, 118 + k, 2) == 20) {
+									TLSTRS5_8.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 21) {
-									TLSTRS5_8.Format("Content Type: Alert (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 21) {
+									TLSTRS5_8.Format("Content Type: Alert (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 22) {
-									TLSTRS5_8.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 22) {
+									TLSTRS5_8.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								else if (CStringToHex(savedata, 130 + k, 2) == 23) {
-									TLSTRS5_8.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 23) {
+									TLSTRS5_8.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								if (CStringToHex(savedata, 132 + k, 4) == 0x303) TLSTRS5_9.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								else if (CStringToHex(savedata, 132 + k, 4) == 0x301) TLSTRS5_9.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								TLSTRS5_10.Format("Length: %d", CStringToHex(savedata, 136 + k, 4));
+								if (CStringToHex(savedata, 120 + k, 4) == 0x303) TLSTRS5_9.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								else if (CStringToHex(savedata, 120 + k, 4) == 0x301) TLSTRS5_9.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								TLSTRS5_10.Format("Length: %d", CStringToHex(savedata, 124 + k, 4));
 
 								// *** COntent Type 이 Handshake 라면
-								if (CStringToHex(savedata, 130 + k, 2) == 22)
+								if (CStringToHex(savedata, 118 + k, 2) == 22)
 								{
 									// *** 1 이면 Client Hello 2 이면 Server Hello
-									if (CStringToHex(savedata, 140 + k, 2) == 1)
+									if (CStringToHex(savedata, 128 + k, 2) == 1)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Client Hello";
-										TLSTRS5_6_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_6_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 2)
+									else if (CStringToHex(savedata, 128 + k, 2) == 2)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Server Hello";
-										TLSTRS5_6_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_6_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_6_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 4)
+									else if (CStringToHex(savedata, 128 + k, 2) == 4)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: New Session Ticket";
-										TLSTRS5_6_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 12)
+									else if (CStringToHex(savedata, 128 + k, 2) == 12)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Server Key Exchange";
-										TLSTRS5_6_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 14)
+									else if (CStringToHex(savedata, 128 + k, 2) == 14)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Server Hello Done";
-										TLSTRS5_6_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 16)
+									else if (CStringToHex(savedata, 128 + k, 2) == 16)
 									{
 										TLSTRS5_6_1 = "Handshake Protocol: Client Key Exchange";
-										TLSTRS5_6_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_6_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_6_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									k += 18;
-									i += 18;
-									continue;
 								}
 								else {
-									k += 10;
-									i += 10;
-									continue;
 								}
 								tlscnt++;
 							}
 							else if (tlscnt == 2)
 							{
-								if (CStringToHex(savedata, 130 + k, 2) == 20) {
-									TLSTRS5_11.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 130 + k, 2));
+								if (CStringToHex(savedata, 118 + k, 2) == 20) {
+									TLSTRS5_11.Format("Content Type: Change Cipher Spec (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 21) {
-									TLSTRS5_11.Format("Content Type: Alert (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 21) {
+									TLSTRS5_11.Format("Content Type: Alert (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
 
-								else if (CStringToHex(savedata, 130 + k, 2) == 22) {
-									TLSTRS5_11.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 22) {
+									TLSTRS5_11.Format("Content Type: Handshake (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								else if (CStringToHex(savedata, 130 + k, 2) == 23) {
-									TLSTRS5_11.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 130 + k, 2));
+								else if (CStringToHex(savedata, 118 + k, 2) == 23) {
+									TLSTRS5_11.Format("Content Type: Application Data (%d)", CStringToHex(savedata, 118 + k, 2));
 								}
-								if (CStringToHex(savedata, 132 + k, 4) == 0x303) TLSTRS5_12.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								else if (CStringToHex(savedata, 132 + k, 4) == 0x301) TLSTRS5_12.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 132 + k, 4));
-								TLSTRS5_13.Format("Length: %d", CStringToHex(savedata, 136 + k, 4));
+								if (CStringToHex(savedata, 120 + k, 4) == 0x303) TLSTRS5_12.Format("Version: TLS 1.2 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								else if (CStringToHex(savedata, 120 + k, 4) == 0x301) TLSTRS5_12.Format("Version: TLS 1 (0x%04X)", CStringToHex(savedata, 120 + k, 4));
+								TLSTRS5_13.Format("Length: %d", CStringToHex(savedata, 124 + k, 4));
 
 								// *** COntent Type 이 Handshake 라면
-								if (CStringToHex(savedata, 130 + k, 2) == 22)
+								if (CStringToHex(savedata, 118 + k, 2) == 22)
 								{
 									// *** 1 이면 Client Hello 2 이면 Server Hello
-									if (CStringToHex(savedata, 140 + k, 2) == 1)
+									if (CStringToHex(savedata, 128 + k, 2) == 1)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Client Hello";
-										TLSTRS5_7_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_7_2.Format("Handshake Type: Client Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 2)
+									else if (CStringToHex(savedata, 128 + k, 2) == 2)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Server Hello";
-										TLSTRS5_7_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
-										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 148 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 148 + k, 4));
+										TLSTRS5_7_2.Format("Handshake Type: Server Hello (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
+										TLSTRS5_7_4.Format("Version: TLS %s (0x%04X)", CStringToHex(savedata, 136 + k, 4) == 0x303 ? "1.2" : "1", CStringToHex(savedata, 136 + k, 4));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 4)
+									else if (CStringToHex(savedata, 128 + k, 2) == 4)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: New Session Ticket";
-										TLSTRS5_7_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: New Session Ticket (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 12)
+									else if (CStringToHex(savedata, 128 + k, 2) == 12)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Server Key Exchange";
-										TLSTRS5_7_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: Server Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 14)
+									else if (CStringToHex(savedata, 128 + k, 2) == 14)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Server Hello Done";
-										TLSTRS5_7_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: Server Hello Done (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									else if (CStringToHex(savedata, 140 + k, 2) == 16)
+									else if (CStringToHex(savedata, 128 + k, 2) == 16)
 									{
 										TLSTRS5_7_1 = "Handshake Protocol: Client Key Exchange";
-										TLSTRS5_7_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 140 + k, 2));
-										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 142 + k, 6));
+										TLSTRS5_7_2.Format("Handshake Type: Client Key Exchange (%d)", CStringToHex(savedata, 128 + k, 2));
+										TLSTRS5_7_3.Format("Length: %d", CStringToHex(savedata, 130 + k, 6));
 									}
-									k += 18;
-									i += 18;
-									continue;
 								}
 								else {
-									k += 10;
-									i += 10;
-									continue;
 								}
+								tlscnt++;
 							}
 						}
 						k += 2;
-						i += 2;
+						i ++;
 					}
 				}
 				
@@ -3518,7 +3485,7 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 						if (
 							((CStringToHex(data, 108 + t, 2) >= 20) &&
 							(CStringToHex(data, 108 + t, 2) <= 26)) &&
-							(CStringToHex(data,110+t, 2) == 3) 
+							(CStringToHex(data,110+t, 2) == 3) && ((CStringToHex(data, 112 + t, 2) == 1) || (CStringToHex(data, 112 + t, 2) == 3))
 							)
 						{
 							break;
@@ -3568,8 +3535,8 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 				HexTemp = "";
 				StrTemp = "";
 				StrTempcat = "";
-				int j = t,z = (118+t)/2, hexcheck = 0;
-				for (z; z < data.GetLength(); z++)
+				int j = t,z = 118+t, hexcheck = 0;
+				for (z; z < data.GetLength(); z+= 2)
 				{
 					if (hexcheck++ == 16) {
 						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
@@ -3584,7 +3551,7 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 					StrTempcat.Format("%c", IsAlpha(CStringToHex(data, 118 + j, 2)));
 					StrTemp += StrTempcat;
 					j += 2;
-					if (((CStringToHex(data, 118 + j, 2) >= 20) && (CStringToHex(data,118+j, 2) <= 26)) && (CStringToHex(data, 120+j, 2) == 3) )
+					if (((CStringToHex(data, 118 + j, 2) >= 20) && (CStringToHex(data,118+j, 2) <= 26)) && (CStringToHex(data, 120+j, 2) == 3) && ((CStringToHex(data, 122+j, 2) == 1) || (CStringToHex(data, 122 + j, 2) == 3)))
 					{
 						m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
 						m_PacketDataControlList.SetItemText(listidx++, 3, StrTemp);
@@ -3626,7 +3593,7 @@ int CNetworkPacketCaptureDlg::SetPacketHexList(CString data, CString protocol, i
 						StrTempcat = "";
 						hexcheck = 0;
 						j += 10;
-						z += 5;
+						z += 10;
 					}
 				}
 				m_PacketDataControlList.SetItemText(listidx, 2, HexTemp);
