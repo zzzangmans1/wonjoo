@@ -1774,7 +1774,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			CString copytmp = NULL;
 			if (!protocol.Compare("SSDP"))
 			{
-				AfxMessageBox("ssdp start");
+
 				SSDPTRS5.Format("Simple Service Discovery Protocol");
 				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
 				{
@@ -1812,13 +1812,16 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 					j += 2;
 				}
 				j += 4;
-				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+				if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
 				{
-					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
-					SSDPTRS5_6 += copytmp + "";
-					j += 2;
+					while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
+					{
+						copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
+						SSDPTRS5_6 += copytmp + "";
+						j += 2;
+					}
+					j += 4;
 				}
-				j += 4;
 				if (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
 				{
 					while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
@@ -1850,7 +1853,6 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 					}
 					j += 4;
 				}
-				AfxMessageBox("ssdp stop");
 			}
 			else if (!protocol.Compare("DNS"))
 			{
@@ -3043,7 +3045,10 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 				SSDPTR5_3 = m_PacketInfoTree.InsertItem(SSDPTRS5_3, 0, 0, SSDPTR5, TVI_LAST);
 				SSDPTR5_4 = m_PacketInfoTree.InsertItem(SSDPTRS5_4, 0, 0, SSDPTR5, TVI_LAST);
 				SSDPTR5_5 = m_PacketInfoTree.InsertItem(SSDPTRS5_5, 0, 0, SSDPTR5, TVI_LAST);
-				SSDPTR5_6 = m_PacketInfoTree.InsertItem(SSDPTRS5_6, 0, 0, SSDPTR5, TVI_LAST);
+				if (SSDPTRS5_6.IsEmpty() != TRUE)
+				{
+					SSDPTR5_6 = m_PacketInfoTree.InsertItem(SSDPTRS5_6, 0, 0, SSDPTR5, TVI_LAST);
+				}
 				if (SSDPTRS5_7.IsEmpty() != TRUE)
 				{
 					SSDPTR5_7 = m_PacketInfoTree.InsertItem(SSDPTRS5_7, 0, 0, SSDPTR5, TVI_LAST);
