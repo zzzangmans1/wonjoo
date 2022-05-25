@@ -547,6 +547,10 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 						{
 							pDlg->m_TCPPacketInfo = "Ceritficate";
 						}
+						else if (data[i + 5] == 12)
+						{
+							pDlg->m_TCPPacketInfo = "Server Key Exchange RESERVED";
+						}
 						else if (data[i + 5] == 14)
 						{
 							pDlg->m_TCPPacketInfo = "Server Hello Done RESERVED";
@@ -1770,6 +1774,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 			CString copytmp = NULL;
 			if (!protocol.Compare("SSDP"))
 			{
+				AfxMessageBox("ssdp start");
 				SSDPTRS5.Format("Simple Service Discovery Protocol");
 				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
 				{
@@ -1785,6 +1790,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 					j += 2;
 				}
 				j += 4;
+				SSDPTRS5.Format("Simple Service Discovery Protocol");
 				while (!(CStringToHex(savedata, 84 + j, 2) == 0xd && CStringToHex(savedata, 84 + j + 2, 2) == 0xa))
 				{
 					copytmp.Format("%c", CStringToHex(savedata, 84 + j, 2));
@@ -1844,6 +1850,7 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 					}
 					j += 4;
 				}
+				AfxMessageBox("ssdp stop");
 			}
 			else if (!protocol.Compare("DNS"))
 			{
