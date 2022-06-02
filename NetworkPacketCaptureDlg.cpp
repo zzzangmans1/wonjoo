@@ -230,6 +230,9 @@ void CNetworkPacketCaptureDlg::OnSysCommand(UINT nID, LPARAM lParam)
 		// *** YES 버튼을 눌렀다면
 		if (MessageBox("프로그램을 종료하시겠습니까?", "EXIT", MB_YESNO) == IDYES)
 		{
+			CStdioFile file;
+			file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate);
+			file.Close();
 			TerminateProcess(ProcessInfo.hProcess,0);								// *** 서버 생성한 프로세스 종료
 			DWORD dwResult;
 			::GetExitCodeThread(m_PCThread, &dwResult);
