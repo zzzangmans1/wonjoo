@@ -96,6 +96,7 @@ BEGIN_MESSAGE_MAP(CNetworkPacketCaptureDlg, CDialogEx)
 	ON_COMMAND(ID_LOG_BUTTON, &CNetworkPacketCaptureDlg::OnLogButton)
 	ON_NOTIFY(HDN_ITEMCLICK, 0, &CNetworkPacketCaptureDlg::OnHdnItemclickList1)					// ** 리스트 헤더 클릭해 SORT 처리
 	ON_WM_CREATE()
+	ON_BN_CLICKED(IDC_FILTER_BUTTON, &CNetworkPacketCaptureDlg::OnBnClickedFilterButton)
 END_MESSAGE_MAP()
 
 // CNetworkPacketCaptureDlg 메시지 처리기
@@ -216,6 +217,7 @@ void CNetworkPacketCaptureDlg::InitToolBar()
 	RepositionBars(AFX_IDW_CONTROLBAR_FIRST, AFX_IDW_CONTROLBAR_LAST, 0);
 }
 
+
 void CNetworkPacketCaptureDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
 	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
@@ -230,6 +232,7 @@ void CNetworkPacketCaptureDlg::OnSysCommand(UINT nID, LPARAM lParam)
 		// *** YES 버튼을 눌렀다면
 		if (MessageBox("프로그램을 종료하시겠습니까?", "EXIT", MB_YESNO) == IDYES)
 		{
+			DeleteFile("C:\\Users\\lenovo\\Desktop\\test.txt");						// *** 파일 삭제
 			TerminateProcess(ProcessInfo.hProcess,0);								// *** 서버 생성한 프로세스 종료
 			DWORD dwResult;
 			::GetExitCodeThread(m_PCThread, &dwResult);
@@ -376,29 +379,63 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	if (ntohs(pDlg->m_EthernetHeader->type)== 0x806)
 	{
 		pDlg->m_Protocol = "ARP";
-		pDlg->m_ARPHeader = (ARP_HEADER*)(data + 14);
-		pDlg->m_SourceIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
-			pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
+		// *** 필터중 이라면
+		if (pDlg->is_FilStart == TRUE)
+		{
+			if (!pDlg->m_Protocol.Find(pDlg->m_FilterString))
+			{
+				pDlg->m_ARPHeader = (ARP_HEADER*)(data + 14);
+				pDlg->m_SourceIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
+					pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
 
-		pDlg->m_DestinationIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->targetmac.e_host[0], pDlg->m_ARPHeader->targetmac.e_host[1], pDlg->m_ARPHeader->targetmac.e_host[2],
-			pDlg->m_ARPHeader->targetmac.e_host[3], pDlg->m_ARPHeader->targetmac.e_host[4], pDlg->m_ARPHeader->targetmac.e_host[5]);
+				pDlg->m_DestinationIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->targetmac.e_host[0], pDlg->m_ARPHeader->targetmac.e_host[1], pDlg->m_ARPHeader->targetmac.e_host[2],
+					pDlg->m_ARPHeader->targetmac.e_host[3], pDlg->m_ARPHeader->targetmac.e_host[4], pDlg->m_ARPHeader->targetmac.e_host[5]);
 
-		if (ntohs(pDlg->m_ARPHeader->opcode) == 1) pDlg->m_ARPPacketInfo.Format("who has %s ? Tell %d.%d.%d.%d",inet_ntoa(pDlg->m_ARPHeader->targetip), pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3]);
-		else pDlg->m_ARPPacketInfo.Format("%d.%d.%d.%d is at %02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3], pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
-								pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
+				if (ntohs(pDlg->m_ARPHeader->opcode) == 1) pDlg->m_ARPPacketInfo.Format("who has %s ? Tell %d.%d.%d.%d", inet_ntoa(pDlg->m_ARPHeader->targetip), pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3]);
+				else pDlg->m_ARPPacketInfo.Format("%d.%d.%d.%d is at %02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3], pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
+					pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
 
+				size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
+				CString ListControlCntStr;
+				ListControlCntStr.Format("%d", ListControlCnt + 1);
+				pDlg->m_NetworkInterfaceControlList.InsertItem(ListControlCnt, ListControlCntStr, 0);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 1, pDlg->m_CurrentTime);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 2, pDlg->m_SourceIp);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 3, pDlg->m_DestinationIp);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 4, pDlg->m_Protocol);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 5, pDlg->m_PacketLength);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 6, pDlg->m_ARPPacketInfo);
+				pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 7, SaveData);
+				pDlg->EnterDataFile(pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol, pDlg->m_PacketLength, pDlg->m_ARPPacketInfo, SaveData);
+			}
+		}
+		// *** 필터중이 아니라면
+		else
+		{
+			pDlg->m_ARPHeader = (ARP_HEADER*)(data + 14);
+			pDlg->m_SourceIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
+				pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
 
-		size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
-		CString ListControlCntStr;
-		ListControlCntStr.Format("%d", ListControlCnt + 1);
-		pDlg->m_NetworkInterfaceControlList.InsertItem(ListControlCnt, ListControlCntStr, 0);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 1, pDlg->m_CurrentTime);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 2, pDlg->m_SourceIp);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 3, pDlg->m_DestinationIp);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 4, pDlg->m_Protocol);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 5, pDlg->m_PacketLength);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 6, pDlg->m_ARPPacketInfo);
-		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 7, SaveData);
+			pDlg->m_DestinationIp.Format("%02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->targetmac.e_host[0], pDlg->m_ARPHeader->targetmac.e_host[1], pDlg->m_ARPHeader->targetmac.e_host[2],
+				pDlg->m_ARPHeader->targetmac.e_host[3], pDlg->m_ARPHeader->targetmac.e_host[4], pDlg->m_ARPHeader->targetmac.e_host[5]);
+
+			if (ntohs(pDlg->m_ARPHeader->opcode) == 1) pDlg->m_ARPPacketInfo.Format("who has %s ? Tell %d.%d.%d.%d", inet_ntoa(pDlg->m_ARPHeader->targetip), pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3]);
+			else pDlg->m_ARPPacketInfo.Format("%d.%d.%d.%d is at %02X:%02X:%02X:%02X:%02X:%02X", pDlg->m_ARPHeader->sendip[0], pDlg->m_ARPHeader->sendip[1], pDlg->m_ARPHeader->sendip[2], pDlg->m_ARPHeader->sendip[3], pDlg->m_ARPHeader->sendmac.e_host[0], pDlg->m_ARPHeader->sendmac.e_host[1],
+				pDlg->m_ARPHeader->sendmac.e_host[2], pDlg->m_ARPHeader->sendmac.e_host[3], pDlg->m_ARPHeader->sendmac.e_host[4], pDlg->m_ARPHeader->sendmac.e_host[5]);
+
+			size_t ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
+			CString ListControlCntStr;
+			ListControlCntStr.Format("%d", ListControlCnt + 1);
+			pDlg->m_NetworkInterfaceControlList.InsertItem(ListControlCnt, ListControlCntStr, 0);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 1, pDlg->m_CurrentTime);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 2, pDlg->m_SourceIp);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 3, pDlg->m_DestinationIp);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 4, pDlg->m_Protocol);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 5, pDlg->m_PacketLength);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 6, pDlg->m_ARPPacketInfo);
+			pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 7, SaveData);
+			pDlg->EnterDataFile(pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol, pDlg->m_PacketLength, pDlg->m_ARPPacketInfo, SaveData);
+		}
 	}
 	else if (pDlg->m_IpHeader->protocol == IPPROTO_TCP)
 	{
@@ -407,7 +444,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		CString Window = "";
 
 		pDlg->m_Protocol = "TCP";
-		pDlg->m_TCPHeader = (TCP_HEADER*) ((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
+		pDlg->m_TCPHeader = (TCP_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
 
 		pDlg->m_TCPHeader->flag_urg > 0 ? flag_check++, Flag += "URG " : 0;
 		pDlg->m_TCPHeader->flag_syn > 0 ? flag_check++, Flag += "SYN " : 0;
@@ -417,17 +454,17 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_TCPHeader->flag_ece > 0 ? flag_check++, Flag += "ECE " : 0;
 		pDlg->m_TCPHeader->flag_cwr > 0 ? flag_check++, Flag += "CWR " : 0;
 		pDlg->m_TCPHeader->flag_ack > 0 ? flag_check++, Flag += "ACK " : 0;
-		
+
 		Flag.Insert(0, "[");
 		if (flag_check == 2) {
 			Flag.Insert(4, ",");
 			Flag.Insert(9, "]");
 		}
 		else Flag.Insert(4, "]");
-		
+
 		pDlg->m_TCPPacketInfo.Format("%d -> %d", ntohs(pDlg->m_TCPHeader->src_port), ntohs(pDlg->m_TCPHeader->dst_port));
 		Window.Format("Win=%d", SWAP16(pDlg->m_TCPHeader->window));
-		pDlg->m_TCPPacketInfo += " " + Flag +" "+ Window;
+		pDlg->m_TCPPacketInfo += " " + Flag + " " + Window;
 		pDlg->m_TCPHeaderPayload = (TCP_HEADER_PAYLOAD*)(data + 54);
 
 		// *** 데이터 바로 뒤에 TLS 헤더가 있다면
@@ -490,11 +527,11 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		// *** 데이터 바로 뒤에 TLS 헤더가 없다면, 있는지 체그
 		else
 		{
-			for (int i = 54; i < header->caplen;i++)
+			for (unsigned int i = 54; i < header->caplen; i++)
 			{
 				if (data[i] >= 20 && data[i] <= 26)
 				{
-					
+
 					if (data[i] == 20) {
 						if (((data[i + 1] << 8) | data[i + 2]) == 0x301) pDlg->m_Protocol = "TLSv1";
 						else if (((data[i + 1] << 8) | data[i + 2]) == 0x303) pDlg->m_Protocol = "TLSv1.2";
@@ -519,7 +556,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 						else {
 							continue;
 						}
-						if (data[i+5] == 1)
+						if (data[i + 5] == 1)
 						{
 							pDlg->m_TCPPacketInfo = "Client Hello";
 						}
@@ -560,7 +597,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 							pDlg->m_TCPPacketInfo = "Client Key Exchange";
 						}
 						else {
-							pDlg->m_TCPPacketInfo.Format(" %X", data[i+5]);
+							pDlg->m_TCPPacketInfo.Format(" %X", data[i + 5]);
 							continue;
 						}
 						break;
@@ -588,16 +625,17 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 5, pDlg->m_PacketLength);
 		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 6, pDlg->m_TCPPacketInfo);
 		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 7, SaveData);
+		pDlg->EnterDataFile(pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol, pDlg->m_PacketLength, pDlg->m_TCPPacketInfo, SaveData);
 	}
 	else if(pDlg->m_IpHeader->protocol == IPPROTO_UDP)
 	{
-		pDlg->m_Protocol = "UDP";
 		pDlg->m_UDPHeader = (UDP_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen);
 		pDlg->m_UDPPacketInfo.Format("%d -> %d Len = %d", ntohs(pDlg->m_UDPHeader->sport), ntohs(pDlg->m_UDPHeader->dport), SWAP16(pDlg->m_UDPHeader->length) - 8);
+		pDlg->m_Protocol = "UDP";
 		if (ntohs(pDlg->m_UDPHeader->sport) == 53 || ntohs(pDlg->m_UDPHeader->dport) == 53)
 		{
 			int infocnt = 0;
-			CString infoStr = "", infoStrtmp= "";
+			CString infoStr = "", infoStrtmp = "";
 			pDlg->m_DNSHeader = (DNS_HEADER*)(data + 22 + pDlg->m_IpHeaderLen);//(DNS_HEADER*)((u_char*)pDlg->m_IpHeader + pDlg->m_IpHeaderLen) + 8;
 			pDlg->m_Protocol = "DNS";
 
@@ -606,17 +644,16 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 				infoStrtmp.Format("%c", CheckAscii(data[infocnt]));
 				infoStr += infoStrtmp;
 			}
-			
-			pDlg->m_UDPPacketInfo.Format("Standard query %s 0x%04X %s %s ",pDlg->m_DNSHeader->IsResponse == 0 ? "" : "response", SWAP16(pDlg->m_DNSHeader->Xid), data[infocnt + 2] == 1 ? "A " : " ",infoStr );
+			pDlg->m_UDPPacketInfo.Format("Standard query %s 0x%04X %s %s ", pDlg->m_DNSHeader->IsResponse == 0 ? "" : "response", SWAP16(pDlg->m_DNSHeader->Xid), data[infocnt + 2] == 1 ? "A " : " ", infoStr);
 		}
-		
+
 		if (ntohs(pDlg->m_UDPHeader->dport) == 1900 && pDlg->m_DestinationIp == "239.255.255.250") {
 			pDlg->m_Protocol = "SSDP";
 			int i = 42;
 			pDlg->m_UDPPacketInfo = "";
 			while (1)
 			{
-				if (data[i] == 0xd && data[i+1] == 0xa) break;
+				if (data[i] == 0xd && data[i + 1] == 0xa) break;
 				pDlg->m_UDPPacketInfo += data[i++];
 			}
 		}
@@ -631,6 +668,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 5, pDlg->m_PacketLength);
 		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 6, pDlg->m_UDPPacketInfo);
 		pDlg->m_NetworkInterfaceControlList.SetItemText(ListControlCnt, 7, SaveData);
+		pDlg->EnterDataFile(pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol, pDlg->m_PacketLength, pDlg->m_UDPPacketInfo, SaveData);
 	}
 	if (pDlg->m_NetworkInterfaceControlList.GetItemCount() == 1)
 	{
@@ -819,6 +857,7 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		*pResult = CDRF_DODEFAULT;
 	}
 }
+
 
 // *** 로그 스레드 
 UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
@@ -3164,6 +3203,22 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 	return 0;
 }
 
+// *** 현재 패킷 내용 저장
+int CNetworkPacketCaptureDlg::EnterDataFile(CString time, CString src, CString dst, CString protocol, CString length, CString info, CString savedata)
+{
+	CStdioFile file;
+	// 이어쓰기
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate | CFile::modeWrite | CFile::modeNoTruncate, NULL))
+	{
+		AfxMessageBox("File Open Fail!");
+	}
+	file.SeekToEnd();
+	file.WriteString("STRAT\n" +time + "\n" + src + "\n" + dst + "\n" + protocol + "\n" + length + "\n" + info + "\n" + savedata +"\n" + "END\n");
+	
+	file.Close();
+	return 0;
+}
+
 // *** Control List Sort 처리 함수
 int CNetworkPacketCaptureDlg::CompareItem(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort)
 {
@@ -3200,6 +3255,7 @@ int CNetworkPacketCaptureDlg::CompareItem(LPARAM lParam1, LPARAM lParam2, LPARAM
 	else {
 		//return AfxMessageBox("정렬할 수 없습니다!");
 	}
+	return 0;
 }
 
 // *** 헥스 컨트롤 리스트 세팅
@@ -3905,6 +3961,14 @@ void CNetworkPacketCaptureDlg::OnBnClickedClear()
 			m_PacketInfoTree.DeleteAllItems();
 			m_NetworkInterfaceControlList.DeleteAllItems();
 			m_PacketDataControlList.DeleteAllItems();
+
+			CStdioFile file;
+			file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate);
+			file.Close();
+			is_FilStart = FALSE;
+			m_FilterString = "";
+			SetDlgItemText(IDC_FILTER_EDIT, "");
+			SetDlgItemText(IDC_FILTER_BUTTON, "FILTER");
 			SetDlgItemText(IDC_STATIC, "THREAD_STATUS: STOP");
 			//MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
 		}
@@ -4018,6 +4082,13 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 			m_PacketInfoTree.DeleteAllItems();
 			m_NetworkInterfaceControlList.DeleteAllItems();
 			m_PacketDataControlList.DeleteAllItems();
+			CStdioFile file;
+			file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate);
+			file.Close();
+			is_FilStart = FALSE;
+			m_FilterString = "";
+			SetDlgItemText(IDC_FILTER_EDIT, "");
+			SetDlgItemText(IDC_FILTER_BUTTON, "FILTER");
 			SetDlgItemText(IDC_STATIC, "THREAD_STATUS: STOP");
 			//MessageBox("캡처가 종료되었습니다.", "캡처 종료", MB_OK);
 		}
@@ -4091,4 +4162,133 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 		//AfxMessageBox("Log Client Thread Success");
 	}
 	return;
+}
+
+// *** 패킷 필터링
+void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
+{
+	CString Fil_str, ReadStr,START, time, src, dst, protocol, length, info, savedata, END;
+	CStdioFile file;
+
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CFile::modeNoTruncate))
+	{
+		MessageBox(_T("파일 오픈 실패!"), _T("오류"), MB_ICONWARNING);
+	}
+	GetDlgItemText(IDC_FILTER_EDIT, Fil_str);
+	// *** 캡처가 멈춰있다면
+	if (m_eThreadWork == ThreadWorkingType::THREAD_STOP)
+	{
+		MessageBox(_T("캡처가 시작되지 않았습니다."), _T("오류"), MB_ICONWARNING);
+	}
+	// *** 필터링 입력이 비어있다면
+	else if((Fil_str.IsEmpty() != FALSE))
+	{
+		MessageBox(_T("필터링을 입력해주세요."), _T("오류"), MB_ICONWARNING);
+	}
+	// *** 필터링 시작 안했다면
+	else if(is_FilStart == FALSE)
+	{
+		// *** 모든 Item 삭제
+		m_PacketInfoTree.DeleteAllItems();
+		m_NetworkInterfaceControlList.DeleteAllItems();
+		m_PacketDataControlList.DeleteAllItems();
+
+		SetDlgItemText(IDC_FILTER_BUTTON, "FILTERING");
+		is_FilStart = TRUE;
+		m_FilterString = Fil_str;
+
+		while (file.ReadString(ReadStr))
+		{
+			if (ReadStr.Find("START")) {
+				START = ReadStr;
+				file.ReadString(ReadStr);
+				time = ReadStr;
+				file.ReadString(ReadStr);
+				src = ReadStr;
+				file.ReadString(ReadStr);
+				dst = ReadStr;
+				file.ReadString(ReadStr);
+				protocol = ReadStr;
+				file.ReadString(ReadStr);
+				length = ReadStr;
+				file.ReadString(ReadStr);
+				info = ReadStr;
+				file.ReadString(ReadStr);
+				savedata = ReadStr;
+				file.ReadString(ReadStr);
+				END = ReadStr;
+				if (!protocol.Find(Fil_str)) {
+					m_Filcnt = m_NetworkInterfaceControlList.GetItemCount();
+					CString ListControlCntStr;
+					ListControlCntStr.Format("%d", m_Filcnt + 1);
+					m_NetworkInterfaceControlList.InsertItem(m_Filcnt, ListControlCntStr, 0);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 1, time);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 2, src);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 3, dst);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 4, protocol);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 5, length);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 6, info);
+					m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 7, savedata);
+				}
+			}
+		}
+	}
+	// *** 필터링 시작중이라면
+	else if (is_FilStart == TRUE)
+	{
+		// *** 모든 Item 삭제
+		m_PacketInfoTree.DeleteAllItems();
+		m_NetworkInterfaceControlList.DeleteAllItems();
+		m_PacketDataControlList.DeleteAllItems();
+
+		SetDlgItemText(IDC_FILTER_BUTTON, "FILTER");
+		SetDlgItemText(IDC_FILTER_EDIT, "");
+		AfxMessageBox("필터링 종료");
+		is_FilStart = FALSE;
+		m_FilterString = "";
+
+		while (file.ReadString(ReadStr))
+		{
+			if (ReadStr.Find("START")) {
+				START = ReadStr;
+				file.ReadString(ReadStr);
+				time = ReadStr;
+				file.ReadString(ReadStr);
+				src = ReadStr;
+				file.ReadString(ReadStr);
+				dst = ReadStr;
+				file.ReadString(ReadStr);
+				protocol = ReadStr;
+				file.ReadString(ReadStr);
+				length = ReadStr;
+				file.ReadString(ReadStr);
+				info = ReadStr;
+				file.ReadString(ReadStr);
+				savedata = ReadStr;
+				file.ReadString(ReadStr);
+				END = ReadStr;
+				m_Filcnt = m_NetworkInterfaceControlList.GetItemCount();
+				CString ListControlCntStr;
+				ListControlCntStr.Format("%d", m_Filcnt + 1);
+				m_NetworkInterfaceControlList.InsertItem(m_Filcnt, ListControlCntStr, 0);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 1, time);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 2, src);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 3, dst);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 4, protocol);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 5, length);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 6, info);
+				m_NetworkInterfaceControlList.SetItemText(m_Filcnt, 7, savedata);
+			}
+		}
+	}
+	file.Close();
+}
+
+// *** ESC, ENTER 누르면 꺼지는거 없애는 메시지
+BOOL CNetworkPacketCaptureDlg::PreTranslateMessage(MSG* pMsg)
+{
+	// TODO: 여기에 특수화된 코드를 추가 및/또는 기본 클래스를 호출합니다.
+	if (pMsg->wParam == VK_ESCAPE || pMsg->wParam == VK_RETURN)
+		return TRUE;
+	return CDialogEx::PreTranslateMessage(pMsg);
 }
