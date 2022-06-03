@@ -3178,7 +3178,7 @@ int CNetworkPacketCaptureDlg::EnterDataFile(CString time, CString src, CString d
 		AfxMessageBox("File Open Fail!");
 	}
 	file.SeekToEnd();
-	file.WriteString(time + "\n" + src + "\n" + dst + "\n" + protocol+"\n"+length+"\n"+info+"\n");
+	file.WriteString("STRAT\n" +time + "\n" + src + "\n" + dst + "\n" + protocol + "\n" + length + "\n" + info + "\n" + savedata +"\n" + "END\n");
 	
 	file.Close();
 	return 0;
