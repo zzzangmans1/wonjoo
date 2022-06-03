@@ -230,9 +230,7 @@ void CNetworkPacketCaptureDlg::OnSysCommand(UINT nID, LPARAM lParam)
 		// *** YES 버튼을 눌렀다면
 		if (MessageBox("프로그램을 종료하시겠습니까?", "EXIT", MB_YESNO) == IDYES)
 		{
-			CStdioFile file;
-			file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate);
-			file.Close();
+			DeleteFile("C:\\Users\\lenovo\\Desktop\\test.txt");						// *** 파일 삭제
 			TerminateProcess(ProcessInfo.hProcess,0);								// *** 서버 생성한 프로세스 종료
 			DWORD dwResult;
 			::GetExitCodeThread(m_PCThread, &dwResult);
@@ -3170,9 +3168,11 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 	return 0;
 }
 
+// *** 현재 패킷 내용 저장
 int CNetworkPacketCaptureDlg::EnterDataFile(CString time, CString src, CString dst, CString protocol, CString length, CString info, CString savedata)
 {
 	CStdioFile file;
+	// 이어쓰기
 	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate | CFile::modeWrite | CFile::modeNoTruncate, NULL))
 	{
 		AfxMessageBox("File Open Fail!");
