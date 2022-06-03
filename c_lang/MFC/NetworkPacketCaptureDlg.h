@@ -64,6 +64,7 @@ public:
 	afx_msg void OnLogButton();
 	void InitToolBar();															// *** 툴바 생성 함수 선언
 											
+
 	enum class ThreadWorkingType {
 		THREAD_STOP,
 		THREAD_RUNNING,
@@ -99,6 +100,7 @@ public:
 	CRect rect;																	// *** 윈도우 크기 받아올 변수 선언
 	CString strcnt;																// *** 리스트 순번 변수 선언
 	CString print_str;
+
 	// 컨트롤 리스트 출력할 변수
 	CString m_CurrentTime;														// *** 시간 받아올 변수
 	CString m_SourceIp;
@@ -122,7 +124,7 @@ public:
 		int flag = -1;  // 클릭한 header에 따라서 정렬할 값이 다르기 때문에 구분해주기위한 변수
 	};
 
-	size_t click_index;															// *** 클릭한 인덱스 
+	size_t click_index;																// *** 클릭한 인덱스 
 	int ClickPacketFrameNumber = 0;
 	int i;
 	int net_dev_idx;
@@ -137,23 +139,35 @@ public:
 
 	PROCESS_INFORMATION ProcessInfo;
 	STARTUPINFO StartupInfo = { 0 };												// *** 로그 서버 실행 변수 선언
+
+	CString m_FilterString = "";													// *** 필터 할 문자열
+	int m_Filcnt = 0;
+	BOOL is_FilStart = FALSE;														// *** 필터링 체크 변수
+
+
 		// 2. 클릭시 이벤트 추가 및 정렬에 사용할 함수 선언
 	
 	// *** 함수
 	afx_msg void OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pResult);
-	afx_msg void OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult);					// *** 컨트롤 리스트에 색상 넣을 함수 선언
-	static UINT ThreadClient(LPVOID param);												// *** 소켓 통신 스레드
-	static UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _method);	// *** PC 스레드
+	afx_msg void OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult);							// *** 컨트롤 리스트에 색상 넣을 함수 선언
 	int SetPacketInfoTree(CString framecnt, CString time, CString protocol, CString lenth, CString savedata);
+	int SetPacketHexList(CString data, CString protocol, int udpsize);
+	int EnterDataFile(CString time, CString src, CString dst, CString protocol, CString length, CString info, CString savedata);
 	static int CALLBACK CompareItem(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort);		// *** SORT 처리 함수
-	int SetPacketHexList(CString data, CString protocol , int udpsize);
 	afx_msg void OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnBnClickedStart();
 	afx_msg void OnBnClickedStop();
 	afx_msg void OnBnClickedClear();
-	afx_msg void OnTbStartClickedWindows();												// *** 툴바 클릭 시 이벤트 함수
+	afx_msg void OnTbStartClickedWindows();													// *** 툴바 클릭 시 이벤트 함수
 	afx_msg void OnTbStopClickedWindows();
 	afx_msg void OnTbClearClickedWindows();
-	afx_msg void OnHdnItemclickList1(NMHDR* pNMHDR, LRESULT* pResult);						// *** SORT 칼럼 클릭 했을 때 
+	afx_msg void OnHdnItemclickList1(NMHDR* pNMHDR, LRESULT* pResult);						// *** SORT 칼럼 클릭 했을 때 \
+
+	// *** 쓰레드
+	static UINT ThreadClient(LPVOID param);													// *** 소켓 통신 스레드
+	static UINT PacketCaptureTFunction(LPVOID _method);										// *** PC 스레드
+
+	afx_msg void OnBnClickedFilterButton();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);											// *** ESC, ENTER 로 꺼지는 거 제거 함수
 };
