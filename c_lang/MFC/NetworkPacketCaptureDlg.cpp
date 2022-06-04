@@ -4208,6 +4208,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 	// *** 필터링 시작 안했다면
 	if(is_FilStart == FALSE)
 	{
+		m_PCThread->SuspendThread();
 		// *** 모든 Item 삭제
 		m_PacketInfoTree.DeleteAllItems();
 		m_NetworkInterfaceControlList.DeleteAllItems();
@@ -4301,6 +4302,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 			}
 		}
 	}
+	m_PCThread->ResumeThread();
 	file.Close();
 }
 
