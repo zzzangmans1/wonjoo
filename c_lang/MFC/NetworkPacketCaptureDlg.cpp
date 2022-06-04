@@ -211,7 +211,7 @@ void CNetworkPacketCaptureDlg::InitToolBar()
 	}
 	CRect rcWindow;
 	GetWindowRect(rcWindow);
-	rcWindow.right += rcClientStart.Width() - rcClientNow.Width();
+	rcWindow.right += rcClientStart.Width();// rcClientStart.Width() - rcClientNow.Width();
 	rcWindow.bottom += rcClientStart.Height() - rcClientNow.Height();
 	MoveWindow(rcWindow, FALSE);
 	RepositionBars(AFX_IDW_CONTROLBAR_FIRST, AFX_IDW_CONTROLBAR_LAST, 0);
@@ -332,6 +332,8 @@ void CNetworkPacketCaptureDlg::OnLvnItemchangedList1(NMHDR* pNMHDR, LRESULT* pRe
 // *** 쓰레드 동작 함수
 void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data)
 {
+
+	Sleep(20);
 	CNetworkPacketCaptureDlg* pDlg = (CNetworkPacketCaptureDlg*)AfxGetApp()->m_pMainWnd;
 	CString ListControlCntStr ="";
 	size_t ListControlCnt = 0;
@@ -458,52 +460,55 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 			else if (((pDlg->m_TCPHeaderPayload->ver1 << 8) | pDlg->m_TCPHeaderPayload->ver2) == 0x303) {
 				pDlg->m_Protocol.Format("TLSv1.2");
 			}
-			if (pDlg->m_TCPHeaderPayload->opaquetype == 20) {
-				pDlg->m_TCPPacketInfo = "Change Cipher Spec";
-			}
-			else if (pDlg->m_TCPHeaderPayload->opaquetype == 21) {
-				pDlg->m_TCPPacketInfo = "Encrypted Alert";
-			}
-			else if (pDlg->m_TCPHeaderPayload->opaquetype == 22) {
-				if (data[59] == 1)
-				{
-					pDlg->m_TCPPacketInfo = "Client Hello";
+			if (pDlg->m_Protocol.Find("TLS") != -1)
+			{
+				if (pDlg->m_TCPHeaderPayload->opaquetype == 20) {
+					pDlg->m_TCPPacketInfo = "Change Cipher Spec";
 				}
-				else if (data[59] == 2)
-				{
-					pDlg->m_TCPPacketInfo = "Server Hello";
+				else if (pDlg->m_TCPHeaderPayload->opaquetype == 21) {
+					pDlg->m_TCPPacketInfo = "Encrypted Alert";
 				}
-				else if (data[59] == 3)
-				{
-					pDlg->m_TCPPacketInfo = "hello verify request RESERVED";
-				}
-				else if (data[59] == 4)
-				{
-					pDlg->m_TCPPacketInfo = "new session ticket";
-				}
-				else if (data[59] == 5)
-				{
-					pDlg->m_TCPPacketInfo = "end of early data";
-				}
-				else if (data[59] == 6)
-				{
-					pDlg->m_TCPPacketInfo = "hello retry request RESERVED";
+				else if (pDlg->m_TCPHeaderPayload->opaquetype == 22) {
+					if (data[59] == 1)
+					{
+						pDlg->m_TCPPacketInfo = "Client Hello";
+					}
+					else if (data[59] == 2)
+					{
+						pDlg->m_TCPPacketInfo = "Server Hello";
+					}
+					else if (data[59] == 3)
+					{
+						pDlg->m_TCPPacketInfo = "hello verify request RESERVED";
+					}
+					else if (data[59] == 4)
+					{
+						pDlg->m_TCPPacketInfo = "new session ticket";
+					}
+					else if (data[59] == 5)
+					{
+						pDlg->m_TCPPacketInfo = "end of early data";
+					}
+					else if (data[59] == 6)
+					{
+						pDlg->m_TCPPacketInfo = "hello retry request RESERVED";
 
+					}
+					else if (data[59] == 11)
+					{
+						pDlg->m_TCPPacketInfo = "ceritficate";
+					}
+					else if (data[59] == 16)
+					{
+						pDlg->m_TCPPacketInfo = "Client Key Exchange";
+					}
+					else {
+						pDlg->m_TCPPacketInfo.Format(" %X", data[59]);
+					}
 				}
-				else if (data[59] == 11)
-				{
-					pDlg->m_TCPPacketInfo = "ceritficate";
+				else if (pDlg->m_TCPHeaderPayload->opaquetype == 23) {
+					pDlg->m_TCPPacketInfo = "Application Data";
 				}
-				else if (data[59] == 16)
-				{
-					pDlg->m_TCPPacketInfo = "Client Key Exchange";
-				}
-				else {
-					pDlg->m_TCPPacketInfo.Format(" %X", data[59]);
-				}
-			}
-			else if (pDlg->m_TCPHeaderPayload->opaquetype == 23) {
-				pDlg->m_TCPPacketInfo = "Application Data";
 			}
 		}
 		// *** 데이터 바로 뒤에 TLS 헤더가 없다면, 있는지 체그
@@ -678,7 +683,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	nudpstart:
 		pDlg->EnterDataFile(pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol, pDlg->m_PacketLength, pDlg->m_UDPPacketInfo, SaveData);
 	}
-	if ((pDlg->m_NetworkInterfaceControlList.GetItemCount() == 1) && pDlg->is_FilStart == FALSE)
+	if ((pDlg->m_NetworkInterfaceControlList.GetItemCount() == 1))
 	{
 		pDlg->SetPacketInfoTree("1",  pDlg->m_CurrentTime, pDlg->m_Protocol,pDlg->m_PacketLength, SaveData);
 		if (pDlg->m_IpHeader->protocol == IPPROTO_UDP) pDlg->SetPacketHexList(SaveData, pDlg->m_Protocol, SWAP16(pDlg->m_UDPHeader->length));
@@ -692,8 +697,9 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 		pDlg->m_PCThread->SuspendThread();
 	}
 	// *** 리스트 컨트롤 꽉찰경우 EnsureVisible() 를 사용하여 자동으로 밑으로 내려준다.
-	pDlg->m_NetworkInterfaceControlList.EnsureVisible(pDlg->m_NetworkInterfaceControlList.GetItemCount() - 1, FALSE);
-
+	if(pDlg->is_FilStart == FALSE)
+		pDlg->m_NetworkInterfaceControlList.EnsureVisible(pDlg->m_NetworkInterfaceControlList.GetItemCount() - 1, FALSE);
+	// *** 데이터 초기화
 	::memset((void*)data, 0, header->caplen * sizeof(u_char) );
 }
 
@@ -867,7 +873,6 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		*pResult = CDRF_DODEFAULT;
 	}
 }
-
 
 // *** 로그 스레드 
 UINT CNetworkPacketCaptureDlg::ThreadClient(LPVOID param)
@@ -4174,21 +4179,23 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 	return;
 }
 
-// *** 패킷 필터링
+// *** 패킷 필터링 버튼
 void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 {
 	CString Fil_str, ReadStr,START, time, src, dst, protocol, length, info, savedata, END;
 	CStdioFile file;
 
 	GetDlgItemText(IDC_FILTER_EDIT, Fil_str);
+	
 	// *** 캡처가 멈춰있다면
 	if (m_eThreadWork == ThreadWorkingType::THREAD_STOP)
 	{
 		MessageBox(_T("캡처가 시작되지 않았습니다."), _T("오류"), MB_ICONWARNING);
 		return;
 	}
-	// *** 필터링 입력이 비어있다면
-	if((Fil_str.IsEmpty() != FALSE))
+	
+	// *** 필터링 입력이 비어있고, 필터링 시작 안했다면
+	if((Fil_str.IsEmpty() != FALSE) && (is_FilStart == FALSE))
 	{
 		MessageBox(_T("필터링을 입력해주세요."), _T("오류"), MB_ICONWARNING);
 		return;
