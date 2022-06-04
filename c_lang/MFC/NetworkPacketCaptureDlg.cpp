@@ -439,6 +439,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	}
 	else if (pDlg->m_IpHeader->protocol == IPPROTO_TCP)
 	{
+		
 		int flag_check = 0, spcCnt = 0;
 		CString Flag = "";
 		CString Window = "";
@@ -3207,8 +3208,8 @@ int CNetworkPacketCaptureDlg::SetPacketInfoTree(CString framecnt,CString time, C
 int CNetworkPacketCaptureDlg::EnterDataFile(CString time, CString src, CString dst, CString protocol, CString length, CString info, CString savedata)
 {
 	CStdioFile file;
-	// 이어쓰기
-	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate | CFile::modeWrite | CFile::modeNoTruncate, NULL))
+	// *** 이어 쓰기 shareDenyNone 다른 곳에서 파일 사용할 때 사용 가능하게
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate | CFile::modeWrite | CFile::modeNoTruncate | CFile::shareDenyNone))
 	{
 		AfxMessageBox("File Open Fail!");
 	}
@@ -4170,23 +4171,26 @@ void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 	CString Fil_str, ReadStr,START, time, src, dst, protocol, length, info, savedata, END;
 	CStdioFile file;
 
-	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CFile::modeNoTruncate))
-	{
-		MessageBox(_T("파일 오픈 실패!"), _T("오류"), MB_ICONWARNING);
-	}
 	GetDlgItemText(IDC_FILTER_EDIT, Fil_str);
 	// *** 캡처가 멈춰있다면
 	if (m_eThreadWork == ThreadWorkingType::THREAD_STOP)
 	{
 		MessageBox(_T("캡처가 시작되지 않았습니다."), _T("오류"), MB_ICONWARNING);
+		return;
 	}
 	// *** 필터링 입력이 비어있다면
-	else if((Fil_str.IsEmpty() != FALSE))
+	if((Fil_str.IsEmpty() != FALSE))
 	{
 		MessageBox(_T("필터링을 입력해주세요."), _T("오류"), MB_ICONWARNING);
+		return;
+	}
+	// *** shareDenyNone 다른 곳에서 파일 사용 가능하게 
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CFile::modeRead | CFile::shareDenyNone))
+	{
+		MessageBox(_T("파일 오픈 실패!"), _T("오류"), MB_ICONWARNING);
 	}
 	// *** 필터링 시작 안했다면
-	else if(is_FilStart == FALSE)
+	if(is_FilStart == FALSE)
 	{
 		// *** 모든 Item 삭제
 		m_PacketInfoTree.DeleteAllItems();
