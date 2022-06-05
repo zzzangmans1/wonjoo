@@ -403,7 +403,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 				goto narpstart;
 		}
 		// *** 필터링중이 아니라면
-		else {
+		else if(pDlg->is_FilStart == FALSE){
 			goto arpstart;
 		}
 	arpstart:
@@ -610,8 +610,8 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 				goto ntcpstart;
 		}
 		// *** 필터링중이 아니라면
-		else {
-			goto ntcpstart;
+		else if (pDlg->is_FilStart == FALSE) {
+			goto tcpstart;
 		}
 	tcpstart:
 		ListControlCnt = pDlg->m_NetworkInterfaceControlList.GetItemCount();
@@ -666,7 +666,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 				goto nudpstart;
 		}
 		// *** 필터링중이 아니라면
-		else {
+		else if (pDlg->is_FilStart == FALSE) {
 			goto udpstart;
 		}
 	udpstart:
@@ -3980,7 +3980,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedClear()
 			CStdioFile file;
 			file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate);
 			file.Close();
-			is_FilStart = FALSE;
+			if(is_FilStart) is_FilStart = FALSE;
 			m_FilterString = "";
 			SetDlgItemText(IDC_FILTER_EDIT, "");
 			SetDlgItemText(IDC_FILTER_BUTTON, "FILTER");
@@ -4100,7 +4100,7 @@ void CNetworkPacketCaptureDlg::OnTbClearClickedWindows()
 			CStdioFile file;
 			file.Open("C:\\Users\\lenovo\\Desktop\\test.txt", CStdioFile::modeCreate);
 			file.Close();
-			is_FilStart = FALSE;
+			if(is_FilStart) is_FilStart = FALSE;
 			m_FilterString = "";
 			SetDlgItemText(IDC_FILTER_EDIT, "");
 			SetDlgItemText(IDC_FILTER_BUTTON, "FILTER");
@@ -4182,11 +4182,15 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 // *** 패킷 필터링 버튼
 void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 {
-	CString Fil_str, ReadStr,START, time, src, dst, protocol, length, info, savedata, END;
+	CString Fil_str, ReadStr,START, time, src, dst, protocol, length, info, savedata, END,
+		status;
 	CStdioFile file;
 
 	GetDlgItemText(IDC_FILTER_EDIT, Fil_str);
 	
+	// *** 대문자로 변경
+	Fil_str.MakeUpper();
+
 	// *** 캡처가 멈춰있다면
 	if (m_eThreadWork == ThreadWorkingType::THREAD_STOP)
 	{
@@ -4208,6 +4212,10 @@ void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 	// *** 필터링 시작 안했다면
 	if(is_FilStart == FALSE)
 	{
+		// *** 필터링 상태 표시줄 표시
+		GetDlgItemText(IDC_STATIC, status);
+		status += " [ FILTERING ]";
+		SetDlgItemText(IDC_STATIC, status);
 		m_PCThread->SuspendThread();
 		// *** 모든 Item 삭제
 		m_PacketInfoTree.DeleteAllItems();
@@ -4257,6 +4265,11 @@ void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 	// *** 필터링 시작중이라면
 	else if (is_FilStart == TRUE)
 	{
+		// *** 필터링 상태 표시줄 표시
+		GetDlgItemText(IDC_STATIC, status);
+		int idx = status.Find(" [ F");
+		status.Delete(idx, 14);
+		SetDlgItemText(IDC_STATIC, status);
 		// *** 모든 Item 삭제
 		m_PacketInfoTree.DeleteAllItems();
 		m_NetworkInterfaceControlList.DeleteAllItems();
@@ -4264,7 +4277,7 @@ void CNetworkPacketCaptureDlg::OnBnClickedFilterButton()
 
 		SetDlgItemText(IDC_FILTER_BUTTON, "FILTER");
 		SetDlgItemText(IDC_FILTER_EDIT, "");
-		AfxMessageBox("필터링 종료");
+		//AfxMessageBox("필터링 종료");
 		is_FilStart = FALSE;
 		m_FilterString = "";
 
