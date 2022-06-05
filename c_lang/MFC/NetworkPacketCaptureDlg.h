@@ -59,9 +59,13 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);										// *** 다이얼로그 백그라운드 컬러 지정할 함수 선언
+		
+	// *** 메뉴
+	afx_msg void Onsourcebutton();												// *** 메뉴 소스코드 버튼 함수
+	afx_msg void OnLogButton();													// *** 메뉴 로그 버튼 함수
+	afx_msg void OnChangeColorButton();
 
-	afx_msg void Onsourcebutton();
-	afx_msg void OnLogButton();
+	// *** 툴바 
 	void InitToolBar();															// *** 툴바 생성 함수 선언
 											
 
@@ -168,6 +172,6 @@ public:
 	static UINT ThreadClient(LPVOID param);													// *** 소켓 통신 스레드
 	static UINT PacketCaptureTFunction(LPVOID _method);										// *** PC 스레드
 
-	afx_msg void OnBnClickedFilterButton();
+	afx_msg void OnBnClickedFilterButton();													// *** 필터 버튼 함수
 	virtual BOOL PreTranslateMessage(MSG* pMsg);											// *** ESC, ENTER 로 꺼지는 거 제거 함수
 };
