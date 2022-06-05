@@ -94,6 +94,7 @@ BEGIN_MESSAGE_MAP(CNetworkPacketCaptureDlg, CDialogEx)
 	ON_COMMAND(ID_TCLEAR_BUTTON, & CNetworkPacketCaptureDlg::OnTbClearClickedWindows)
 	ON_COMMAND(ID_GITHUB_BUTTON, &CNetworkPacketCaptureDlg::Onsourcebutton)
 	ON_COMMAND(ID_LOG_BUTTON, &CNetworkPacketCaptureDlg::OnLogButton)
+	ON_COMMAND(ID_CHANGE_COLOR, &CNetworkPacketCaptureDlg::OnChangeColorButton)
 	ON_NOTIFY(HDN_ITEMCLICK, 0, &CNetworkPacketCaptureDlg::OnHdnItemclickList1)					// ** 리스트 헤더 클릭해 SORT 처리
 	ON_WM_CREATE()
 	ON_BN_CLICKED(IDC_FILTER_BUTTON, &CNetworkPacketCaptureDlg::OnBnClickedFilterButton)
@@ -4177,6 +4178,10 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 		//AfxMessageBox("Log Client Thread Success");
 	}
 	return;
+}
+
+void CNetworkPacketCaptureDlg::OnChangeColorButton()
+{
 }
 
 // *** 패킷 필터링 버튼
