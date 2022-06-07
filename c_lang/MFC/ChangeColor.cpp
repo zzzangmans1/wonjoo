@@ -43,6 +43,14 @@ BOOL ChangeColor::OnInitDialog()
 	CDialogEx::OnInitDialog();
 
 	// TODO:  여기에 추가 초기화 작업을 추가합니다.
+
+	// *** 칼럼 아이템 초기화
+	m_ListCtrl.DeleteAllItems();
+	m_ListCtrl.DeleteColumn(0);
+	m_ListCtrl.DeleteColumn(0);
+	m_ListCtrl.DeleteColumn(0);
+	m_ListCtrl.DeleteColumn(0);
+
 	m_ListCtrl.InsertColumn(0, "PROTOCOL", LVCFMT_LEFT, 200);
 	m_ListCtrl.InsertColumn(1, "RED", LVCFMT_LEFT, 100);
 	m_ListCtrl.InsertColumn(1, "GREEN", LVCFMT_LEFT, 100);
@@ -50,50 +58,10 @@ BOOL ChangeColor::OnInitDialog()
 
 	SetWindowText("Protocol Color Change");
 
-	CStdioFile file;
-	
-	if (!file.Open("C:\\Users\\lenovo\\Desktop\\config.txt", CStdioFile::modeCreate | CFile::modeReadWrite | CFile::modeNoTruncate | CFile::shareDenyNone))
-	{
-		AfxMessageBox("파일 오픈 실패!");
-	}
-	file.ReadString(tmp);
-	AfxExtractSubString(tcp, tmp, 0, ' ');
-	AfxExtractSubString(tcpR, tmp, 1, ' ');
-	AfxExtractSubString(tcpG, tmp, 2, ' ');
-	AfxExtractSubString(tcpB, tmp, 3, ' ');
-	
-	file.ReadString(tmp);
-	AfxExtractSubString(udp, tmp, 0, ' ');
-	AfxExtractSubString(udpR, tmp, 1, ' ');
-	AfxExtractSubString(udpG, tmp, 2, ' ');
-	AfxExtractSubString(udpB, tmp, 3, ' ');
-
-	file.ReadString(tmp);
-	AfxExtractSubString(ssdp, tmp, 0, ' ');
-	AfxExtractSubString(ssdpR, tmp, 1, ' ');
-	AfxExtractSubString(ssdpG, tmp, 2, ' ');
-	AfxExtractSubString(ssdpB, tmp, 3, ' ');
-
-	file.ReadString(tmp);
-	AfxExtractSubString(arp, tmp, 0, ' ');
-	AfxExtractSubString(arpR, tmp, 1, ' ');
-	AfxExtractSubString(arpG, tmp, 2, ' ');
-	AfxExtractSubString(arpB, tmp, 3, ' ');
-
-	file.ReadString(tmp);
-	AfxExtractSubString(dns, tmp, 0, ' ');
-	AfxExtractSubString(dnsR, tmp, 1, ' ');
-	AfxExtractSubString(dnsG, tmp, 2, ' ');
-	AfxExtractSubString(dnsB, tmp, 3, ' ');
-
-	file.ReadString(tmp);
-	AfxExtractSubString(tls, tmp, 0, ' ');
-	AfxExtractSubString(tlsR, tmp, 1, ' ');
-	AfxExtractSubString(tlsG, tmp, 2, ' ');
-	AfxExtractSubString(tlsB, tmp, 3, ' ');
+	ReadConfig();
 
 	m_ListCtrl.InsertItem(0, tcp);
-	m_ListCtrl.SetItemText(0,1, tcpR);
+	m_ListCtrl.SetItemText(0, 1, tcpR);
 	m_ListCtrl.SetItemText(0, 2, tcpG);
 	m_ListCtrl.SetItemText(0, 3, tcpB);
 
@@ -101,7 +69,7 @@ BOOL ChangeColor::OnInitDialog()
 	m_ListCtrl.SetItemText(0, 1, udpR);
 	m_ListCtrl.SetItemText(0, 2, udpG);
 	m_ListCtrl.SetItemText(0, 3, udpB);
-	 
+
 	m_ListCtrl.InsertItem(0, ssdp);
 	m_ListCtrl.SetItemText(0, 1, ssdpR);
 	m_ListCtrl.SetItemText(0, 2, ssdpG);
@@ -132,23 +100,204 @@ BOOL ChangeColor::OnInitDialog()
 // *** 저장 버튼 클릭하였을 때
 void ChangeColor::OnBnClickedOk()
 {
-	CString checkstr;
+	CString checkstr, R,G,B;
+
 	GetDlgItemText(IDC_EDIT4, checkstr);
-	if ((checkstr.MakeUpper() == tcp) ||
-		(checkstr.MakeUpper() == udp) ||
-		(checkstr.MakeUpper() == ssdp) ||
-		(checkstr.MakeUpper() == arp) ||
-		(checkstr.MakeUpper() == dns) ||
-		(checkstr.MakeUpper() == tls))
+	if (checkstr.MakeUpper() == tcp)
 	{
-		AfxMessageBox("프로토콜 맞습니다.");
+		GetDlgItemText(IDC_EDIT5, R);
+		if ((atoi(R) >= 0) && (atoi(R) <= 255))
+		{
+			tcpR = R;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+
+		GetDlgItemText(IDC_EDIT6, G);
+		if ((atoi(G) >= 0) && (atoi(G) <= 255))
+		{
+			tcpG = G;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT7, B);
+		if ((atoi(B) >= 0) && (atoi(B) <= 255))
+		{
+			tcpB = B;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		
+	}
+	else if (checkstr.MakeUpper() == udp)
+	{
+
+		GetDlgItemText(IDC_EDIT5, R);
+		if ((atoi(R) >= 0) && (atoi(R) <= 255))
+		{
+			udpR = R;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT6, G);
+		if ((atoi(G) >= 0) && (atoi(G) <= 255))
+		{
+			udpG = G;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT7, B);
+		if ((atoi(B) >= 0) && (atoi(B) <= 255))
+		{
+			udpB = B;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+	}
+	else if (checkstr.MakeUpper() == ssdp)
+	{
+
+		GetDlgItemText(IDC_EDIT5, R);
+		if ((atoi(R) >= 0) && (atoi(R) <= 255))
+		{
+			ssdpR = R;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT6, G);
+		if ((atoi(G) >= 0) && (atoi(G) <= 255))
+		{
+			ssdpG = G;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT7, B);
+		if ((atoi(B) >= 0) && (atoi(B) <= 255))
+		{
+			ssdpB = B;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+	}
+	else if (checkstr.MakeUpper() == arp)
+	{
+
+		GetDlgItemText(IDC_EDIT5, R);
+		if ((atoi(R) >= 0) && (atoi(R) <= 255))
+		{
+			arpR = R;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT6, G);
+		if ((atoi(G) >= 0) && (atoi(G) <= 255))
+		{
+			arpG = G;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT7, B);
+		if ((atoi(B) >= 0) && (atoi(B) <= 255))
+		{
+			arpB = B;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+	}
+	else if (checkstr.MakeUpper() == dns)
+	{
+
+		GetDlgItemText(IDC_EDIT5, R);
+		if ((atoi(R) >= 0) && (atoi(R) <= 255))
+		{
+			dnsR = R;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT6, G);
+		if ((atoi(G) >= 0) && (atoi(G) <= 255))
+		{
+			dnsG = G;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT7, B);
+		if ((atoi(B) >= 0) && (atoi(B) <= 255))
+		{
+			dnsB = B;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+	}
+	else if (checkstr.MakeUpper() == tls)
+	{
+
+		GetDlgItemText(IDC_EDIT5, R);
+		if ((atoi(R) >= 0) && (atoi(R) <= 255))
+		{
+			tlsR = R;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT6, G);
+		if ((atoi(G) >= 0) && (atoi(G) <= 255))
+		{
+			tlsG = G;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
+		GetDlgItemText(IDC_EDIT7, B);
+		if ((atoi(B) >= 0) && (atoi(B) <= 255))
+		{
+			tlsB = B;
+		}
+		else {
+			AfxMessageBox("RGB 값이 아닙니다.");
+			return;
+		}
 	}
 	else
 	{
-		AfxMessageBox(checkstr + "프로토콜이 아닙니다");
+		AfxMessageBox(checkstr + "는 프로토콜이 아닙니다");
 	}
+
+	SaveConfig();
+	OnInitDialog();
 	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	CDialogEx::OnOK();
 }
 
 
@@ -294,4 +443,74 @@ void ChangeColor::OnNMCustomdrawList1(NMHDR* pNMHDR, LRESULT* pResult)
 
 		*pResult = CDRF_DODEFAULT;
 	}
+}
+
+void ChangeColor::SaveConfig()
+{
+	CStdioFile file;
+
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\config.txt", CStdioFile::modeCreate | CFile::modeWrite | CFile::modeNoTruncate | CFile::shareDenyNone))
+	{
+		AfxMessageBox("파일 오픈 실패!");
+	}
+	tmp = tcp + " " + tcpR + " " + tcpG + " " + tcpB+"\n";
+	file.WriteString(tmp);
+	tmp = udp + " " + udpR + " " + udpG + " " + udpB + "\n";
+	file.WriteString(tmp);
+	tmp = ssdp + " " + ssdpR + " " + ssdpG + " " + ssdpB + "\n";
+	file.WriteString(tmp);
+	tmp = arp + " " + arpR + " " + arpG + " " + arpB + "\n";
+	file.WriteString(tmp);
+	tmp = dns + " " + dnsR + " " + dnsG + " " + dnsB + "\n";
+	file.WriteString(tmp);
+	tmp = tls + " " + tlsR + " " + tlsG + " " + tlsB + "\n";
+	file.WriteString(tmp);
+
+	file.Close();
+}
+
+void ChangeColor::ReadConfig()
+{
+	CStdioFile file;
+
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\config.txt", CStdioFile::modeCreate | CFile::modeRead | CFile::modeNoTruncate | CFile::shareDenyNone))
+	{
+		AfxMessageBox("파일 오픈 실패!");
+	}
+	file.ReadString(tmp);
+	AfxExtractSubString(tcp, tmp, 0, ' ');
+	AfxExtractSubString(tcpR, tmp, 1, ' ');
+	AfxExtractSubString(tcpG, tmp, 2, ' ');
+	AfxExtractSubString(tcpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(udp, tmp, 0, ' ');
+	AfxExtractSubString(udpR, tmp, 1, ' ');
+	AfxExtractSubString(udpG, tmp, 2, ' ');
+	AfxExtractSubString(udpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(ssdp, tmp, 0, ' ');
+	AfxExtractSubString(ssdpR, tmp, 1, ' ');
+	AfxExtractSubString(ssdpG, tmp, 2, ' ');
+	AfxExtractSubString(ssdpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(arp, tmp, 0, ' ');
+	AfxExtractSubString(arpR, tmp, 1, ' ');
+	AfxExtractSubString(arpG, tmp, 2, ' ');
+	AfxExtractSubString(arpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(dns, tmp, 0, ' ');
+	AfxExtractSubString(dnsR, tmp, 1, ' ');
+	AfxExtractSubString(dnsG, tmp, 2, ' ');
+	AfxExtractSubString(dnsB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(tls, tmp, 0, ' ');
+	AfxExtractSubString(tlsR, tmp, 1, ' ');
+	AfxExtractSubString(tlsG, tmp, 2, ' ');
+	AfxExtractSubString(tlsB, tmp, 3, ' ');
+	file.Close();
 }
