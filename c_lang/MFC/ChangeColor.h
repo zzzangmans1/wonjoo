@@ -27,6 +27,8 @@ public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnNMDblclkList1(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnNMCustomdrawList1(NMHDR* pNMHDR, LRESULT* pResult);
+	void SaveConfig();
+	void ReadConfig();
 
 	CString tcp, tcpR, tcpG, tcpB,
 		udp, udpR, udpG, udpB,
