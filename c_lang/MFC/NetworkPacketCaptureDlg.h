@@ -6,6 +6,7 @@
 #include <pcap/pcap.h>
 #include "Protocol.h"
 #include "ChoiceNetworkInterface.h"   
+#include "ChangeColor.h"
 #include <locale.h>
 #include <iostream>
 #include <iomanip>
@@ -149,6 +150,14 @@ public:
 	BOOL is_FilStart = FALSE;														// *** 필터링 체크 변수
 
 
+	CString tcp, tcpR, tcpG, tcpB,													// *** config 파일 읽어들일 변수
+		udp, udpR, udpG, udpB,
+		ssdp, ssdpR, ssdpG, ssdpB,
+		arp, arpR, arpG, arpB,
+		dns, dnsR, dnsG, dnsB,
+		tls, tlsR, tlsG, tlsB,
+		tmp;
+
 		// 2. 클릭시 이벤트 추가 및 정렬에 사용할 함수 선언
 	
 	// *** 함수
@@ -158,6 +167,7 @@ public:
 	int SetPacketInfoTree(CString framecnt, CString time, CString protocol, CString lenth, CString savedata);
 	int SetPacketHexList(CString data, CString protocol, int udpsize);
 	int EnterDataFile(CString time, CString src, CString dst, CString protocol, CString length, CString info, CString savedata);
+	void ReadConfig();
 	static int CALLBACK CompareItem(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort);		// *** SORT 처리 함수
 	afx_msg void OnTvnSelchangedPacketInfo(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnBnClickedStart();
