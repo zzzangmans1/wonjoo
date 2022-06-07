@@ -29,7 +29,7 @@ void ChangeColor::DoDataExchange(CDataExchange* pDX)
 
 
 BEGIN_MESSAGE_MAP(ChangeColor, CDialogEx)
-	ON_BN_CLICKED(IDOK, &ChangeColor::OnBnClickedOk)
+	ON_BN_CLICKED(IDC_SAVE_BUTTON, &ChangeColor::OnBnClickedOk)
 	ON_NOTIFY(NM_DBLCLK, IDC_LIST1, &ChangeColor::OnNMDblclkList1)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_LIST1, &ChangeColor::OnNMCustomdrawList1)
 END_MESSAGE_MAP()
