@@ -113,6 +113,8 @@ BOOL CNetworkPacketCaptureDlg::OnInitDialog()
 	setlocale(LC_ALL, "Korean");
 	SetWindowText(_T("Packet Capture"));												// *** 윈도우 이름 변경
 
+	ReadConfig();
+
 	//ModifyStyleEx(WS_EX_APPWINDOW, WS_EX_TOOLWINDOW);									// *** 작업 표시줄 가리기
 
 	ChoiceNetworkInterface ChoiceNet;													// *** 자식 다이얼로그 
@@ -684,7 +686,7 @@ void Packet_Handler(u_char* param, const pcap_pkthdr* header, const u_char* data
 	nudpstart:
 		pDlg->EnterDataFile(pDlg->m_CurrentTime, pDlg->m_SourceIp, pDlg->m_DestinationIp, pDlg->m_Protocol, pDlg->m_PacketLength, pDlg->m_UDPPacketInfo, SaveData);
 	}
-	if ((pDlg->m_NetworkInterfaceControlList.GetItemCount() == 1))
+	if ((pDlg->m_NetworkInterfaceControlList.GetItemCount() == 1) && pDlg->is_FilStart == FALSE)
 	{
 		pDlg->SetPacketInfoTree("1",  pDlg->m_CurrentTime, pDlg->m_Protocol,pDlg->m_PacketLength, SaveData);
 		if (pDlg->m_IpHeader->protocol == IPPROTO_UDP) pDlg->SetPacketHexList(SaveData, pDlg->m_Protocol, SWAP16(pDlg->m_UDPHeader->length));
@@ -789,7 +791,6 @@ UINT CNetworkPacketCaptureDlg::PacketCaptureTFunction(LPVOID _mothod)
 // *** 컨트롤 리스트 색칠하는 부분
 void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 {
-
 	CString strType;
 	BOOL bTCPFlag = FALSE;
 	BOOL bUDPFlag = FALSE;
@@ -841,30 +842,28 @@ void CNetworkPacketCaptureDlg::OnCustomdrawList(NMHDR* pNMHDR, LRESULT* pResult)
 		// TCP 라면
 		if (bTCPFlag)
 		{
-			//pLVCD->clrText = RGB(255, 0, 0);  // 글자 색 변경 
-			pLVCD->clrTextBk = RGB(115, 242, 255);  // 배경 색 변경 
+			pLVCD->clrTextBk = RGB(atoi(tcpR), atoi(tcpG), atoi(tcpB));  // 배경 색 변경 
 		}
 		// UDP 라면
 		else if (bUDPFlag)
 		{
-			//pLVCD->clrText = RGB(0, 255, 0);
-			pLVCD->clrTextBk = RGB(122, 255, 131);
+			pLVCD->clrTextBk = RGB(atoi(udpR), atoi(udpG), atoi(udpB));
 		}
 		else if (bSSDPFlag)
 		{
-			pLVCD->clrTextBk = RGB(255, 197, 78);
+			pLVCD->clrTextBk = RGB(atoi(ssdpR), atoi(ssdpG), atoi(ssdpB));
 		}
 		else if (bARPFlag)
 		{
-			pLVCD->clrTextBk = RGB(251, 255, 95);
+			pLVCD->clrTextBk = RGB(atoi(arpR), atoi(arpG), atoi(arpB));
 		}
 		else if (bDNSFlag)
 		{
-			pLVCD->clrTextBk = RGB(255, 98, 98);
+			pLVCD->clrTextBk = RGB(atoi(dnsR), atoi(dnsG), atoi(dnsB));
 		}
 		else if (bTLSFlag)
 		{
-			pLVCD->clrTextBk = RGB(206, 148, 255);
+			pLVCD->clrTextBk = RGB(atoi(tlsR), atoi(tlsG), atoi(tlsB));
 		}
 		else
 		{
@@ -4180,8 +4179,59 @@ void CNetworkPacketCaptureDlg::OnLogButton()
 	return;
 }
 
+// *** 메뉴에 컬러 변경 버튼을 누르면
 void CNetworkPacketCaptureDlg::OnChangeColorButton()
 {
+	ChangeColor ChangeColor;													// *** 자식 다이얼로그 
+	ChangeColor.DoModal();
+	ReadConfig();
+	// AfxMessageBox("컬러 변경");
+}
+
+void CNetworkPacketCaptureDlg::ReadConfig()
+{
+	CStdioFile file;
+
+	if (!file.Open("C:\\Users\\lenovo\\Desktop\\config.txt", CStdioFile::modeCreate | CFile::modeRead | CFile::modeNoTruncate | CFile::shareDenyNone))
+	{
+		AfxMessageBox("파일 오픈 실패!");
+	}
+	file.ReadString(tmp);
+	AfxExtractSubString(tcp, tmp, 0, ' ');
+	AfxExtractSubString(tcpR, tmp, 1, ' ');
+	AfxExtractSubString(tcpG, tmp, 2, ' ');
+	AfxExtractSubString(tcpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(udp, tmp, 0, ' ');
+	AfxExtractSubString(udpR, tmp, 1, ' ');
+	AfxExtractSubString(udpG, tmp, 2, ' ');
+	AfxExtractSubString(udpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(ssdp, tmp, 0, ' ');
+	AfxExtractSubString(ssdpR, tmp, 1, ' ');
+	AfxExtractSubString(ssdpG, tmp, 2, ' ');
+	AfxExtractSubString(ssdpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(arp, tmp, 0, ' ');
+	AfxExtractSubString(arpR, tmp, 1, ' ');
+	AfxExtractSubString(arpG, tmp, 2, ' ');
+	AfxExtractSubString(arpB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(dns, tmp, 0, ' ');
+	AfxExtractSubString(dnsR, tmp, 1, ' ');
+	AfxExtractSubString(dnsG, tmp, 2, ' ');
+	AfxExtractSubString(dnsB, tmp, 3, ' ');
+
+	file.ReadString(tmp);
+	AfxExtractSubString(tls, tmp, 0, ' ');
+	AfxExtractSubString(tlsR, tmp, 1, ' ');
+	AfxExtractSubString(tlsG, tmp, 2, ' ');
+	AfxExtractSubString(tlsB, tmp, 3, ' ');
+	file.Close();
 }
 
 // *** 패킷 필터링 버튼
